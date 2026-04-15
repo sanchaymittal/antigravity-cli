@@ -5,6 +5,7 @@ const { Command } = require('commander');
 const { callRawInference } = require('./sidecar/raw');
 const { discoverSidecar } = require('./sidecar/discovery');
 const { MODEL_MAP, DEFAULT_MODEL_KEY, resolveModel } = require('./models');
+const { version } = require('../package.json');
 
 // Model enum — maps sidecar numeric value → GetModelResponse string enum
 const VALUE_TO_MODEL_ENUM = {
@@ -32,7 +33,7 @@ const program = new Command();
 program
   .name('ag')
   .description('CLI for Antigravity — chat with Claude, Gemini, and GPT-OSS via your subscription')
-  .version('0.1.0');
+  .version(version);
 
 // ── ag models ────────────────────────────────
 
@@ -72,12 +73,25 @@ program
 // ── ag chat ──────────────────────────────────
 
 program
-  .command('chat <message>')
-  .description('Send a one-shot message to Antigravity')
+  .command('chat [message]')
+  .description('Send a one-shot message to Antigravity (reads stdin if no message given)')
   .option('-m, --model <model>', 'Model to use', DEFAULT_MODEL_KEY)
   .option('-s, --system <prompt>', 'System prompt')
   .action(async (message, opts) => {
     const ctx = makeCtx();
+
+    // Resolve model — error on unknown, don't silently fall back
+    if (!MODEL_MAP[opts.model] && opts.model !== DEFAULT_MODEL_KEY) {
+      const lower = opts.model.toLowerCase();
+      const match = Object.keys(MODEL_MAP).find((k) => k.includes(lower) || lower.includes(k));
+      if (!match) {
+        console.error(`Unknown model: ${opts.model}`);
+        console.error('Run `ag models` to list available models.');
+        process.exit(1);
+      }
+      opts.model = match;
+    }
+
     const resolved = resolveModel(opts.model);
     const modelEnum = VALUE_TO_MODEL_ENUM[resolved.value];
 
@@ -85,6 +99,21 @@ program
       console.error(`Unknown model: ${opts.model}`);
       console.error('Run `ag models` to list available models.');
       process.exit(1);
+    }
+
+    // Read from stdin if no message arg provided
+    if (!message) {
+      if (process.stdin.isTTY) {
+        console.error('Usage: ag chat <message>  or  echo "..." | ag chat');
+        process.exit(1);
+      }
+      const chunks = [];
+      for await (const chunk of process.stdin) chunks.push(chunk);
+      message = Buffer.concat(chunks).toString('utf8').trim();
+      if (!message) {
+        console.error('No message provided (stdin was empty).');
+        process.exit(1);
+      }
     }
 
     const messages = [];

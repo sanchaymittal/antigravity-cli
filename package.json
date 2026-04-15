@@ -3,15 +3,33 @@
   "version": "0.1.0",
   "description": "CLI for Antigravity — chat with Claude, Gemini, and GPT-OSS via your Antigravity subscription",
   "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
   "bin": {
     "ag": "./src/cli.js"
   },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "start": "node src/cli.js"
   },
   "dependencies": {
+    "@sanchaymittal/chanakya": "file:../chanakya",
     "commander": "^14.0.0"
   },
-  "keywords": ["antigravity", "ai", "cli", "claude", "gemini"],
-  "license": "MIT"
+  "keywords": ["antigravity", "ai", "cli", "claude", "gemini", "gpt", "llm"],
+  "license": "MIT",
+  "author": "sanchaymittal",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sanchaymittal/antigravity-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sanchaymittal/antigravity-cli/issues"
+  },
+  "homepage": "https://github.com/sanchaymittal/antigravity-cli#readme"
 }
