@@ -6,16 +6,7 @@ const { callRawInference } = require('./sidecar/raw');
 const { discoverSidecar } = require('./sidecar/discovery');
 const { MODEL_MAP, DEFAULT_MODEL_KEY, resolveModel } = require('./models');
 const { version } = require('../package.json');
-
-// Model enum — maps sidecar numeric value → GetModelResponse string enum
-const VALUE_TO_MODEL_ENUM = {
-  1018: 'MODEL_PLACEHOLDER_M18',
-  1037: 'MODEL_PLACEHOLDER_M37',
-  1036: 'MODEL_PLACEHOLDER_M36',
-  1035: 'MODEL_PLACEHOLDER_M35',
-  1026: 'MODEL_PLACEHOLDER_M26',
-  342:  'MODEL_PLACEHOLDER_M42',
-};
+const { VALUE_TO_MODEL_ENUM } = require('./model-enum');
 
 function makeCtx() {
   return { sidecarInfo: null, sidecarInfoTimestamp: 0, SIDECAR_CACHE_TTL: 30000 };
