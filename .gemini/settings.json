@@ -1,0 +1,24 @@
+{
+  "security": {
+    "auth": {
+      "selectedType": "oauth-personal"
+    }
+  },
+  "mcpServers": {
+    "mempalace": {
+      "command": "/Users/sanchaymittal/.local/share/uv/tools/mempalace/bin/python",
+      "args": [
+        "-m",
+        "mempalace.mcp_server"
+      ]
+    },
+    "chanakya": {
+      "httpUrl": "http://127.0.0.1:51544/mcp",
+      "trust": true
+    }
+  },
+  "ide": {
+    "hasSeenNudge": true,
+    "enabled": true
+  }
+}

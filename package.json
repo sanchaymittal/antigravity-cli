@@ -11,17 +11,31 @@
   },
   "files": [
     "src/",
+    "dist/",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "start": "node src/cli.js"
+    "start": "node src/cli.js",
+    "build": "tsc"
   },
   "dependencies": {
     "@sanchaymittal/chanakya": "file:../chanakya",
     "commander": "^14.0.0"
   },
-  "keywords": ["antigravity", "ai", "cli", "claude", "gemini", "gpt", "llm"],
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "antigravity",
+    "ai",
+    "cli",
+    "claude",
+    "gemini",
+    "gpt",
+    "llm"
+  ],
   "license": "MIT",
   "author": "sanchaymittal",
   "repository": {
