@@ -7,6 +7,8 @@ const { discoverSidecar } = require('./sidecar/discovery');
 const { MODEL_MAP, DEFAULT_MODEL_KEY, resolveModel } = require('./models');
 const { version } = require('../package.json');
 const { VALUE_TO_MODEL_ENUM } = require('./model-enum');
+const { runAgent } = require('./agent');
+const { initMcpServers, shutdownMcpServers } = require('./mcp/client');
 
 function makeCtx() {
   return { sidecarInfo: null, sidecarInfoTimestamp: 0, SIDECAR_CACHE_TTL: 30000 };
@@ -121,6 +123,62 @@ program
       if (!result.content.endsWith('\n')) process.stdout.write('\n');
     } catch (err) {
       if (err.message.includes('not discovered') || err.message.includes('not found') || err.message.includes('No reachable')) {
+        fatalNoSidecar();
+      }
+      console.error(`Error: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+// ── ag run ──────────────────────────────────
+
+program
+  .command('run <intent>')
+  .description('Run an agentic task (reads/writes files, runs commands, uses MCP tools)')
+  .option('-m, --model <model>', 'Model to use', DEFAULT_MODEL_KEY)
+  .action(async (intent, opts) => {
+    const ctx = makeCtx();
+
+    if (!MODEL_MAP[opts.model] && opts.model !== DEFAULT_MODEL_KEY) {
+      const lower = opts.model.toLowerCase();
+      const match = Object.keys(MODEL_MAP).find((k) => k.includes(lower) || lower.includes(k));
+      if (!match) {
+        console.error(`Unknown model: ${opts.model}`);
+        console.error('Run `ag models` to list available models.');
+        process.exit(1);
+      }
+      opts.model = match;
+    }
+
+    const resolved = resolveModel(opts.model);
+    const modelEnum = VALUE_TO_MODEL_ENUM[resolved.value];
+
+    if (!modelEnum) {
+      console.error(`Unknown model: ${opts.model}`);
+      console.error('Run `ag models` to list available models.');
+      process.exit(1);
+    }
+
+    const info = await discoverSidecar(ctx);
+    if (!info) fatalNoSidecar();
+
+    const mcpData = await initMcpServers();
+
+    const cleanup = async () => {
+      await shutdownMcpServers(mcpData.clients);
+    };
+
+    try {
+      const result = await runAgent(ctx, intent, modelEnum, mcpData);
+      await cleanup();
+      process.exit(result.done ? 0 : 1);
+    } catch (err) {
+      await cleanup();
+      if (
+        err.message.includes('not discovered') ||
+        err.message.includes('not found') ||
+        err.message.includes('No reachable')
+      ) {
         fatalNoSidecar();
       }
       console.error(`Error: ${err.message}`);
