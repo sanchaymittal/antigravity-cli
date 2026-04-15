@@ -1,0 +1,17 @@
+{
+  "name": "antigravity-cli",
+  "version": "0.1.0",
+  "description": "CLI for Antigravity — chat with Claude, Gemini, and GPT-OSS via your Antigravity subscription",
+  "type": "commonjs",
+  "bin": {
+    "ag": "./src/cli.js"
+  },
+  "scripts": {
+    "start": "node src/cli.js"
+  },
+  "dependencies": {
+    "commander": "^14.0.0"
+  },
+  "keywords": ["antigravity", "ai", "cli", "claude", "gemini"],
+  "license": "MIT"
+}

@@ -1,0 +1,111 @@
+#!/usr/bin/env node
+'use strict';
+
+const { Command } = require('commander');
+const { callRawInference } = require('./sidecar/raw');
+const { discoverSidecar } = require('./sidecar/discovery');
+const { MODEL_MAP, DEFAULT_MODEL_KEY, resolveModel } = require('./models');
+
+// Model enum — maps sidecar numeric value → GetModelResponse string enum
+const VALUE_TO_MODEL_ENUM = {
+  1018: 'MODEL_PLACEHOLDER_M18',
+  1037: 'MODEL_PLACEHOLDER_M37',
+  1036: 'MODEL_PLACEHOLDER_M36',
+  1035: 'MODEL_PLACEHOLDER_M35',
+  1026: 'MODEL_PLACEHOLDER_M26',
+  342:  'MODEL_PLACEHOLDER_M42',
+};
+
+function makeCtx() {
+  return { sidecarInfo: null, sidecarInfoTimestamp: 0, SIDECAR_CACHE_TTL: 30000 };
+}
+
+function fatalNoSidecar() {
+  console.error('Error: Antigravity sidecar not found. Make sure Antigravity is running.');
+  console.error('       Set AG_DEBUG=1 for discovery details.');
+  process.exit(1);
+}
+
+// ─────────────────────────────────────────────
+
+const program = new Command();
+program
+  .name('ag')
+  .description('CLI for Antigravity — chat with Claude, Gemini, and GPT-OSS via your subscription')
+  .version('0.1.0');
+
+// ── ag models ────────────────────────────────
+
+program
+  .command('models')
+  .description('List available Antigravity models')
+  .action(() => {
+    const visible = Object.entries(MODEL_MAP).filter(([, v]) => !v.hidden);
+    console.log('Available models:\n');
+    for (const [id, info] of visible) {
+      const tag = id === DEFAULT_MODEL_KEY ? '  (default)' : '';
+      console.log(`  ${id}${tag}`);
+      console.log(`    ${info.name}  ·  ${info.owned_by}  ·  ctx ${(info.context / 1000).toFixed(0)}k\n`);
+    }
+  });
+
+// ── ag status ────────────────────────────────
+
+program
+  .command('status')
+  .description('Check if Antigravity sidecar is reachable')
+  .action(async () => {
+    const ctx = makeCtx();
+    process.stdout.write('Discovering sidecar...');
+    const info = await discoverSidecar(ctx);
+    if (!info) {
+      console.log(' not found.');
+      fatalNoSidecar();
+    }
+    console.log(` OK`);
+    console.log(`  PID:    ${info.pid}`);
+    console.log(`  Ports:  ${info.actualPorts.join(', ')}`);
+    console.log(`  Tokens: ${info.csrfTokens.length}`);
+    console.log(`  Cert:   ${info.certPath || 'not found (will connect without)'}`);
+  });
+
+// ── ag chat ──────────────────────────────────
+
+program
+  .command('chat <message>')
+  .description('Send a one-shot message to Antigravity')
+  .option('-m, --model <model>', 'Model to use', DEFAULT_MODEL_KEY)
+  .option('-s, --system <prompt>', 'System prompt')
+  .action(async (message, opts) => {
+    const ctx = makeCtx();
+    const resolved = resolveModel(opts.model);
+    const modelEnum = VALUE_TO_MODEL_ENUM[resolved.value];
+
+    if (!modelEnum) {
+      console.error(`Unknown model: ${opts.model}`);
+      console.error('Run `ag models` to list available models.');
+      process.exit(1);
+    }
+
+    const messages = [];
+    if (opts.system) messages.push({ role: 'system', content: opts.system });
+    messages.push({ role: 'user', content: message });
+
+    try {
+      const result = await callRawInference(ctx, messages, modelEnum, null);
+      if (!result || !result.content) {
+        console.error('No response from sidecar.');
+        process.exit(1);
+      }
+      process.stdout.write(result.content);
+      if (!result.content.endsWith('\n')) process.stdout.write('\n');
+    } catch (err) {
+      if (err.message.includes('not discovered') || err.message.includes('not found') || err.message.includes('No reachable')) {
+        fatalNoSidecar();
+      }
+      console.error(`Error: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+program.parse();
