@@ -18,6 +18,7 @@
     "start": "node src/cli.js"
   },
   "dependencies": {
+    "@sanchaymittal/chanakya": "file:../chanakya",
     "commander": "^14.0.0"
   },
   "keywords": ["antigravity", "ai", "cli", "claude", "gemini", "gpt", "llm"],
