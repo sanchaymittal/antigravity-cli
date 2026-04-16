@@ -61,7 +61,8 @@ function formatMessagesAsPrompt(messages, tools) {
         // Format assistant tool calls so the model sees the conversation flow
         const toolCallTexts = msg.tool_calls.map((tc) => {
           const fn = tc.function || {};
-          return `<tool_call>{"name": "${fn.name}", "arguments": ${fn.arguments || '{}'}}</tool_call>`;
+          const args = fn.arguments ? JSON.parse(fn.arguments) : {};
+          return `<tool_call>${JSON.stringify({ name: fn.name, arguments: args })}</tool_call>`;
         });
         parts.push(`[Assistant]\n${content || ''}${toolCallTexts.join('\n')}\n`);
       } else {
@@ -71,7 +72,13 @@ function formatMessagesAsPrompt(messages, tools) {
       // Tool results are shown with their tool_call_id for context, enclosed in observation tags
       // to satisfy models that are heavily fine-tuned on XML schema flows (Claude, Minimax)
       const toolName = msg.name || msg.tool_call_id || 'tool';
-      parts.push(`<observation>\n[Tool Result: ${toolName}]\n${content}\n</observation>\n`);
+      // Escape XML tags in tool result content to prevent observation block corruption.
+      // raw.js itself contains </observation> and <tool_call> strings; if a sub-agent
+      // reads this file the unescaped tags would break the prompt structure.
+      const safeContent = content
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      parts.push(`<observation>\n[Tool Result: ${toolName}]\n${safeContent}\n</observation>\n`);
     }
   }
 
@@ -185,7 +192,6 @@ function parseToolCalls(responseText) {
   };
 }
 
-let inferenceStartMutex = Promise.resolve();
 
 /**
  * Call the sidecar's GetModelResponse for raw LLM inference.
@@ -236,16 +242,6 @@ async function callRawInference(ctx, messages, modelEnum, tools = null) {
   // Call GetModelResponse with an extended timeout.
   // Large prompts or slow thinking models can take several minutes.
   const INFERENCE_TIMEOUT_MS = 900000; // 15 minutes
-
-  // Throttle concurrent inference requests by 1 second to prevent H2 connection drops
-  // when the client fires multiple simultaneous requests. (We place this exactly before
-  // the http2 connection so that earlier asynchronous delays don't stack them up again).
-  await new Promise((resolve) => {
-    inferenceStartMutex = inferenceStartMutex.then(() => {
-      resolve();
-      return new Promise((r) => setTimeout(r, 1000));
-    });
-  });
 
   const result = await makeH2JsonCall(
     lsPort,
