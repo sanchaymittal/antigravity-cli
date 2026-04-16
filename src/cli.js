@@ -9,6 +9,7 @@ const { version } = require('../package.json');
 const { VALUE_TO_MODEL_ENUM } = require('./model-enum');
 const { runAgent } = require('./agent');
 const { initMcpServers, shutdownMcpServers } = require('./mcp/client');
+const { snapshotUsage, diffUsage, persistRunUsage, loadHistory } = require('./sidecar/usage');
 
 function makeCtx() {
   return { sidecarInfo: null, sidecarInfoTimestamp: 0, SIDECAR_CACHE_TTL: 30000 };
@@ -159,6 +160,8 @@ program
       process.exit(1);
     }
 
+    const usageBefore = snapshotUsage();
+
     const info = await discoverSidecar(ctx);
     if (!info) fatalNoSidecar();
 
@@ -170,6 +173,20 @@ program
 
     try {
       const result = await runAgent(ctx, intent, modelEnum, mcpData, { cwd: process.cwd() });
+      const usageAfter = snapshotUsage();
+      const tokenDelta = diffUsage(usageBefore, usageAfter);
+      if (tokenDelta) {
+        persistRunUsage(tokenDelta);
+        const total = tokenDelta.inputTokens + tokenDelta.outputTokens;
+        process.stderr.write(
+          `\n--- Token Usage ---\n` +
+          (tokenDelta.model ? `  Model:  ${tokenDelta.model}\n` : '') +
+          `  Input:  ${tokenDelta.inputTokens.toLocaleString()} tokens\n` +
+          `  Output: ${tokenDelta.outputTokens.toLocaleString()} tokens\n` +
+          `  Total:  ${total.toLocaleString()} tokens\n` +
+          `-------------------\n`
+        );
+      }
       await cleanup();
       process.exit(result.done ? 0 : 1);
     } catch (err) {
@@ -184,6 +201,34 @@ program
       console.error(`Error: ${err.message}`);
       process.exit(1);
     }
+  });
+
+// ── ag quota ─────────────────────────────────
+
+program
+  .command('quota')
+  .description('Show token usage history across ag run sessions')
+  .action(() => {
+    const history = loadHistory();
+    if (history.length === 0) {
+      console.log('No token usage recorded yet. Run `ag run` first.');
+      console.log('For quota limits: Antigravity app Settings > Model.');
+      return;
+    }
+    const totals = history.reduce((acc, e) => {
+      acc.input += e.inputTokens || 0;
+      acc.output += e.outputTokens || 0;
+      return acc;
+    }, { input: 0, output: 0 });
+    const lastModel = history[history.length - 1].model;
+    console.log('');
+    console.log(`--- Token Usage (last ${history.length} runs) ---`);
+    if (lastModel) console.log(`  Last model: ${lastModel}`);
+    console.log(`  Input:  ${totals.input.toLocaleString()} tokens`);
+    console.log(`  Output: ${totals.output.toLocaleString()} tokens`);
+    console.log(`  Total:  ${(totals.input + totals.output).toLocaleString()} tokens`);
+    console.log('------------------------------------------');
+    console.log('For quota limits: Antigravity app Settings > Model.');
   });
 
 program.parse();
