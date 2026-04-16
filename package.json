@@ -10,7 +10,15 @@
     "ag": "./src/cli.js"
   },
   "files": [
-    "src/",
+    "src/agent.js",
+    "src/cli.js",
+    "src/images.js",
+    "src/model-enum.js",
+    "src/models.js",
+    "src/utils.js",
+    "src/mcp/",
+    "src/sidecar/",
+    "src/tools/",
     "README.md",
     "LICENSE"
   ],
