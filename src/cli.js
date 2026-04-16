@@ -238,7 +238,7 @@ program
     if (!info) fatalNoSidecar();
 
     const mcpData = await initMcpServers({ cwd: process.cwd() });
-    await runRepl(ctx, modelEnum, mcpData);
+    await runRepl(ctx, modelEnum, mcpData, resolved.key);
   });
 
 // ── ag quota ─────────────────────────────────
@@ -279,7 +279,7 @@ program.action(async () => {
   const modelEnum = VALUE_TO_MODEL_ENUM[resolved.value];
 
   const mcpData = await initMcpServers({ cwd: process.cwd() });
-  await runRepl(ctx, modelEnum, mcpData);
+  await runRepl(ctx, modelEnum, mcpData, resolved.key);
 });
 
 program.parse();
