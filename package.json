@@ -1,5 +1,5 @@
 {
-  "name": "antigravity-cli",
+  "name": "@sanchaymittal/antigravity-cli",
   "version": "0.1.0",
   "description": "CLI for Antigravity — chat with Claude, Gemini, and GPT-OSS via your Antigravity subscription",
   "type": "commonjs",
