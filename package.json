@@ -7,7 +7,7 @@
     "node": ">=18"
   },
   "bin": {
-    "ag": "./src/cli.js"
+    "ag": "src/cli.js"
   },
   "files": [
     "src/agent.js",
@@ -42,7 +42,7 @@
   "author": "sanchaymittal",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sanchaymittal/antigravity-cli.git"
+    "url": "git+https://github.com/sanchaymittal/antigravity-cli.git"
   },
   "bugs": {
     "url": "https://github.com/sanchaymittal/antigravity-cli/issues"
