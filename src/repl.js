@@ -15,25 +15,25 @@ const SYSTEM_PROMPT = (cwd) =>
 /**
  * Run one REPL turn. Mutates messages[]. Exported for testing (accepts optional inferFn).
  */
-async function replTurn(ctx, messages, modelEnum, mcpData, inferFn) {
+async function replTurn(ctx, messages, modelEnum, mcpData, inferFn, opts = {}) {
   const allTools = buildAllTools(mcpData);
   const toolDefs = allTools.map(t => t.definition);
   const infer = inferFn || ((c, m, e, t) => callRawInference(c, m, e, t));
 
   for (let i = 0; i < MAX_TOOL_CALLS_PER_TURN; i++) {
-    if (process.stderr.isTTY && !process.env.INK_TUI) process.stderr.write("\x1b[2mThinking...\x1b[0m\n");
+    if (process.stderr.isTTY && !opts.silent) process.stderr.write("\x1b[2mThinking...\x1b[0m\n");
     
     let response;
     try {
       response = await infer(ctx, messages, modelEnum, toolDefs);
-      if (process.stderr.isTTY && !process.env.INK_TUI) process.stderr.write("\x1b[1A\x1b[2K");
+      if (process.stderr.isTTY && !opts.silent) process.stderr.write("\x1b[1A\x1b[2K");
     } catch (err) {
       throw err;
     }
 
     const { content, toolCalls } = response;
 
-    if (content && !process.env.INK_TUI) printResponse(content);
+    if (content && !opts.silent) printResponse(content);
 
     if (!toolCalls || toolCalls.length === 0) {
       messages.push({ role: 'assistant', content: content || '' });
@@ -43,7 +43,7 @@ async function replTurn(ctx, messages, modelEnum, mcpData, inferFn) {
     messages.push({ role: 'assistant', content: content || '', tool_calls: toolCalls });
 
     for (const toolCall of toolCalls) {
-      if (!process.env.INK_TUI) printToolCall(toolCall.name, toolCall.args_parsed || toolCall.arguments);
+      if (!opts.silent) printToolCall(toolCall.name, toolCall.args_parsed || toolCall.arguments);
       const observation = await executeTool(allTools, mcpData.clients, toolCall);
       if (process.env.AG_DEBUG === '1') {
         process.stderr.write(`[tool:${toolCall.name}] ${observation}\n`);
@@ -52,12 +52,11 @@ async function replTurn(ctx, messages, modelEnum, mcpData, inferFn) {
     }
   }
 
-  if (!process.env.INK_TUI) printError('max tool calls per turn reached');
+  if (!opts.silent) printError('max tool calls per turn reached');
 }
 
 async function runRepl(ctx, modelEnum, mcpData, modelKey) {
   if (process.stdin.isTTY) {
-    process.env.INK_TUI = '1';
     const { runTui } = require('./tui/index.js');
     return runTui(ctx, modelEnum, mcpData, modelKey);
   }

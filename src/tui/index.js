@@ -5,6 +5,9 @@ const { render } = require('ink');
 const App = require('./App');
 const { replTurn } = require('../repl');
 
+const boundReplTurn = (ctx, msgs, modelEnum, mcpData) =>
+  replTurn(ctx, msgs, modelEnum, mcpData, undefined, { silent: true });
+
 function runTui(ctx, modelEnum, mcpData, modelKey) {
   const SYSTEM_PROMPT = (cwd) =>
     `You are a helpful coding assistant working in ${cwd}.\n` +
@@ -20,7 +23,7 @@ function runTui(ctx, modelEnum, mcpData, modelKey) {
       modelEnum,
       mcpData,
       initialModelKey: modelKey,
-      replTurn
+      replTurn: boundReplTurn
     })
   );
 }

@@ -8,6 +8,10 @@ const { marked } = require('marked');
 const TerminalRenderer = require('marked-terminal');
 const chalk = require('chalk');
 
+const { shutdownMcpServers } = require("../mcp/client");
+const { MODEL_MAP, resolveModel } = require("../models");
+const { VALUE_TO_MODEL_ENUM } = require("../model-enum");
+
 marked.setOptions({
   renderer: new TerminalRenderer(),
 });
@@ -19,14 +23,16 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
   const [modelKey, setModelKey] = useState(initialModelKey);
   const { exit } = useApp();
 
-  useInput((input, key) => {
-    if (key.ctrl && input === 'c') {
-      exit();
-      process.exit(0);
+  const modelEnumRef = useRef(modelEnum);
+
+  useInput((inputChar, key) => {
+    if (key.ctrl && inputChar === "c") {
+      shutdownMcpServers(mcpData.clients).then(() => { exit(); process.exit(0); });
     }
   });
 
   const handleSubmit = async (value) => {
+    if (isThinking) return;
     const trimmed = value.trim();
     if (!trimmed) return;
     setInput('');
@@ -44,12 +50,15 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
       } else if (cmd === 'model') {
         const newModel = args[0];
         if (newModel) {
-          setModelKey(newModel);
-          setMessages(prev => [
-            ...prev,
-            { role: 'user', content: trimmed },
-            { role: 'assistant', content: `Switched model to ${newModel}` }
-          ]);
+          const resolved = resolveModel(newModel);
+          const newEnum = VALUE_TO_MODEL_ENUM[resolved && resolved.value];
+          if (!newEnum) {
+            setMessages(prev => [...prev, { role: "user", content: trimmed }, { role: "assistant", content: `Unknown model: ${newModel}. Run "ag models" to list available.` }]);
+          } else {
+            modelEnumRef.current = newEnum;
+            setModelKey(newModel);
+            setMessages(prev => [...prev, { role: "user", content: trimmed }, { role: "assistant", content: `Switched to ${newModel}` }]);
+          }
         } else {
           setMessages(prev => [
             ...prev,
@@ -58,8 +67,7 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
           ]);
         }
       } else if (cmd === 'exit' || cmd === 'quit') {
-        exit();
-        process.exit(0);
+        shutdownMcpServers(mcpData.clients).then(() => { exit(); process.exit(0); });
       } else {
         setMessages(prev => [
           ...prev,
@@ -78,7 +86,7 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
       // replTurn mutates the messages array, but we want to track state updates
       // We'll wrap it to capture the updates if possible, or just rely on the fact it mutates
       // and then set state with a copy.
-      await replTurn(ctx, newMessages, modelEnum, mcpData);
+      await replTurn(ctx, newMessages, modelEnumRef.current, mcpData);
       setMessages([...newMessages]);
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${err.message}` }]);
@@ -89,6 +97,9 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
 
   return (
     <Box flexDirection="column" height="100%">
+      <Box marginBottom={1}>
+        <Text bold>  ag</Text><Text dimColor> — Antigravity CLI</Text>
+      </Box>
       <Box flexDirection="column" flexGrow={1} paddingBottom={1}>
         {messages.map((msg, i) => (
           <Box key={i} flexDirection="column" marginBottom={1}>
