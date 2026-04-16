@@ -95,56 +95,77 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
     }
   };
 
-  return (
-    <Box flexDirection="column" height="100%">
-      <Box marginBottom={1}>
-        <Text bold>  ag</Text><Text dimColor> — Antigravity CLI</Text>
-      </Box>
-      <Box flexDirection="column" flexGrow={1} paddingBottom={1}>
-        {messages.map((msg, i) => (
-          <Box key={i} flexDirection="column" marginBottom={1}>
-            {msg.role === 'user' && (
-              <Box>
-                <Text color="cyan" bold>You: </Text>
-                <Text>{msg.content}</Text>
-              </Box>
-            )}
-            {msg.role === 'assistant' && (
-              <Box flexDirection="column">
-                {msg.content && <Text>{marked(msg.content).trim()}</Text>}
-                {msg.tool_calls && msg.tool_calls.map((tc, j) => (
-                  <Text key={j} color="magenta" dim>
-                    ⚙ {tc.name} {JSON.stringify(tc.args_parsed || tc.arguments)}
-                  </Text>
-                ))}
-              </Box>
-            )}
-            {msg.role === 'tool' && (
-              <Box>
-                <Text color="magenta" dim>⚙ {msg.name} result</Text>
-              </Box>
-            )}
-          </Box>
-        ))}
-      </Box>
-
-      <Box flexDirection="column">
-        <Box>
-          <Box flexGrow={1}>
-            <Text color="gray" dim>{modelKey}</Text>
-          </Box>
-          {isThinking && (
-            <Box>
-              <Text color="gray" dim>thinking...</Text>
-            </Box>
-          )}
-        </Box>
-        <Box>
-          <Text color="cyan" bold>❯ </Text>
-          <TextInput value={input} onChange={setInput} onSubmit={handleSubmit} />
-        </Box>
-      </Box>
-    </Box>
+  return React.createElement(
+    Box,
+    { flexDirection: "column", height: "100%" },
+    React.createElement(
+      Box,
+      { marginBottom: 1 },
+      React.createElement(Text, { bold: true }, "  ag"),
+      React.createElement(Text, { dimColor: true }, " — Antigravity CLI")
+    ),
+    React.createElement(
+      Box,
+      { flexDirection: "column", flexGrow: 1, paddingBottom: 1 },
+      messages.map((msg, i) =>
+        React.createElement(
+          Box,
+          { key: i, flexDirection: "column", marginBottom: 1 },
+          msg.role === 'user' &&
+            React.createElement(
+              Box,
+              null,
+              React.createElement(Text, { color: "cyan", bold: true }, "You: "),
+              React.createElement(Text, null, msg.content)
+            ),
+          msg.role === 'assistant' &&
+            React.createElement(
+              Box,
+              { flexDirection: "column" },
+              msg.content && React.createElement(Text, null, marked(msg.content).trim()),
+              msg.tool_calls &&
+                msg.tool_calls.map((tc, j) =>
+                  React.createElement(
+                    Text,
+                    { key: j, color: "magenta", dim: true },
+                    `⚙ ${tc.name} ${JSON.stringify(tc.args_parsed || tc.arguments)}`
+                  )
+                )
+            ),
+          msg.role === 'tool' &&
+            React.createElement(
+              Box,
+              null,
+              React.createElement(Text, { color: "magenta", dim: true }, `⚙ ${msg.name} result`)
+            )
+        )
+      )
+    ),
+    React.createElement(
+      Box,
+      { flexDirection: "column" },
+      React.createElement(
+        Box,
+        null,
+        React.createElement(
+          Box,
+          { flexGrow: 1 },
+          React.createElement(Text, { color: "gray", dim: true }, modelKey)
+        ),
+        isThinking &&
+          React.createElement(
+            Box,
+            null,
+            React.createElement(Text, { color: "gray", dim: true }, "thinking...")
+          )
+      ),
+      React.createElement(
+        Box,
+        null,
+        React.createElement(Text, { color: "cyan", bold: true }, "❯ "),
+        React.createElement(TextInput, { value: input, onChange: setInput, onSubmit: handleSubmit })
+      )
+    )
   );
 };
 
