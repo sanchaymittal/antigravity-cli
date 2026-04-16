@@ -24,7 +24,8 @@
     "src/tui/",
     "src/tui/App.cjs",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "screenshot_v0.1.1.png"
   ],
   "scripts": {
     "start": "node src/cli.js",
