@@ -5,6 +5,8 @@ const path = require('path');
 const http = require('http');
 const { spawn } = require('child_process');
 
+let _rpcId = 0;
+
 function readMcpConfig() {
   const configPath = path.join(process.cwd(), '.ag', 'mcp.json');
   try {
@@ -22,7 +24,6 @@ function spawnMcpServer(serverName, config) {
     });
 
     let buffer = '';
-    let requestId = 0;
     const pending = new Map();
 
     proc.stdout.on('data', (chunk) => {
@@ -39,7 +40,9 @@ function spawnMcpServer(serverName, config) {
             if (msg.error) rej(new Error(msg.error.message || JSON.stringify(msg.error)));
             else res(msg.result);
           }
-        } catch { /* ignore parse errors */ }
+        } catch (err) {
+          process.stderr.write(`Warning: MCP server "${serverName}" sent invalid JSON: ${line}\n`);
+        }
       }
     });
 
@@ -50,7 +53,7 @@ function spawnMcpServer(serverName, config) {
     proc.on('error', reject);
 
     const send = (method, params) => {
-      const id = ++requestId;
+      const id = ++_rpcId;
       return new Promise((res, rej) => {
         pending.set(id, { resolve: res, reject: rej });
         const msg = JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n';
@@ -58,22 +61,27 @@ function spawnMcpServer(serverName, config) {
       });
     };
 
+    const onExitBeforeInit = (code) => {
+      reject(new Error(`MCP server "${serverName}" exited with code ${code} before initialization`));
+    };
+    proc.once('exit', onExitBeforeInit);
+
     send('initialize', {
       protocolVersion: '2024-11-05',
       capabilities: {},
       clientInfo: { name: 'ag', version: '0.1.0' },
     })
       .then(() => {
+        proc.off('exit', onExitBeforeInit);
         proc.stdin.write(
           JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }) + '\n',
         );
         resolve({ proc, send });
       })
-      .catch(reject);
-
-    proc.once('exit', (code) => {
-      reject(new Error(`MCP server "${serverName}" exited with code ${code} before initialization`));
-    });
+      .catch((err) => {
+        proc.off('exit', onExitBeforeInit);
+        reject(err);
+      });
   });
 }
 
@@ -104,7 +112,7 @@ function httpPost(url, body, sessionId) {
 
 async function connectHttpMcpServer(serverName, url) {
   // initialize
-  const id1 = 1;
+  const id1 = ++_rpcId;
   const initRes = await httpPost(url, {
     jsonrpc: '2.0', id: id1,
     method: 'initialize',
@@ -123,7 +131,7 @@ async function connectHttpMcpServer(serverName, url) {
   await httpPost(url, { jsonrpc: '2.0', method: 'notifications/initialized', params: {} }, sessionId);
 
   const send = async (method, params) => {
-    const id = Date.now();
+    const id = ++_rpcId;
     const res = await httpPost(url, { jsonrpc: '2.0', id, method, params }, sessionId);
     if (!res.body) return {};
     try { return JSON.parse(res.body).result ?? {}; } catch { return {}; }
