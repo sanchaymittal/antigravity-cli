@@ -11,7 +11,7 @@ I love using CLI tools — they're composable, scriptable, and always there. Ant
 ## Quickstart
 
 ```bash
-npm install -g antigravity-cli
+npm install -g @sanchaymittal/antigravity-cli
 ag status
 ```
 
