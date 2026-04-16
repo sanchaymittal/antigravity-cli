@@ -21,7 +21,7 @@ async function replTurn(ctx, messages, modelEnum, mcpData, inferFn) {
   const infer = inferFn || ((c, m, e, t) => callRawInference(c, m, e, t));
 
   for (let i = 0; i < MAX_TOOL_CALLS_PER_TURN; i++) {
-    const spinner = createSpinner("Thinking...");
+    const spinner = createSpinner("Thinking...", { stream: process.stderr });
     spinner.start();
     
     let response;
@@ -69,7 +69,8 @@ async function runRepl(ctx, modelEnum, mcpData) {
   printBanner(modelEnum);
 
   const promptStr = "\x1b[36m\x1b[1m❯\x1b[0m ";
-  const prompt = () => process.stdout.write(promptStr);
+  rl.setPrompt(promptStr);
+  const prompt = () => rl.prompt();
   prompt();
 
   try {
