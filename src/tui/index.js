@@ -2,7 +2,7 @@
 
 const React = require('react');
 const { render } = require('ink');
-const App = require('./App');
+const App = require('./App.cjs');
 const { replTurn } = require('../repl');
 
 const boundReplTurn = (ctx, msgs, modelEnum, mcpData) =>

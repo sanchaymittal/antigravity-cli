@@ -22,22 +22,25 @@
     "src/sidecar/",
     "src/tools/",
     "src/tui/",
+    "src/tui/App.cjs",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "start": "node src/cli.js",
-    "test": "node --test tests/**/*.test.js"
+    "test": "node --test tests/**/*.test.js",
+    "build": "esbuild src/tui/App.js --jsx=transform --platform=node --format=cjs --outfile=src/tui/App.cjs --loader:.js=jsx",
+    "prepare": "npm run build"
   },
   "dependencies": {
-    "commander": "^14.0.0",
     "chalk": "^4.1.2",
-    "ora": "^5.4.1",
+    "commander": "^14.0.0",
     "ink": "^3.2.0",
-    "react": "^17.0.2",
     "ink-text-input": "^4.0.3",
     "marked": "^4.3.0",
-    "marked-terminal": "^5.2.0"
+    "marked-terminal": "^5.2.0",
+    "ora": "^5.4.1",
+    "react": "^17.0.2"
   },
   "keywords": [
     "antigravity",
@@ -57,5 +60,8 @@
   "bugs": {
     "url": "https://github.com/sanchaymittal/antigravity-cli/issues"
   },
-  "homepage": "https://github.com/sanchaymittal/antigravity-cli#readme"
+  "homepage": "https://github.com/sanchaymittal/antigravity-cli#readme",
+  "devDependencies": {
+    "esbuild": "^0.28.0"
+  }
 }
