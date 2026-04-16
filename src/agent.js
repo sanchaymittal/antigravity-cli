@@ -1,8 +1,7 @@
 'use strict';
 
 const _raw = require('./sidecar/raw');
-const { BUILTIN_TOOLS } = require('./tools/builtin');
-const { callMcpTool } = require('./mcp/client');
+const { buildAllTools, executeTool } = require('./tools/dispatch.js');
 
 const MAX_TURNS = 50;
 
@@ -23,24 +22,9 @@ async function runAgent(ctx, intent, modelEnum, mcpData, opts = {}) {
   };
   const cwd = opts.cwd ?? process.cwd();
 
-  const { tools: mcpTools, clients } = mcpData;
-
-  const toolIndex = new Map();
-  for (const t of BUILTIN_TOOLS) {
-    toolIndex.set(t.definition.function.name, { execute: t.execute });
-  }
-  for (const t of mcpTools) {
-    toolIndex.set(t.definition.function.name, {
-      serverName: t.serverName,
-      toolName: t.toolName,
-      isMcp: true,
-    });
-  }
-
-  const allToolDefs = [
-    ...BUILTIN_TOOLS.map((t) => t.definition),
-    ...mcpTools.map((t) => t.definition),
-  ];
+  const { clients } = mcpData;
+  const allTools = buildAllTools(mcpData);
+  const allToolDefs = allTools.map(t => t.definition);
 
   const messages = [
     { role: 'system', content: makeSystemPrompt(cwd) },
@@ -74,26 +58,14 @@ async function runAgent(ctx, intent, modelEnum, mcpData, opts = {}) {
     });
 
     for (const toolCall of result.toolCalls) {
-      const name = toolCall.function.name;
-      let args;
-      try {
-        args = JSON.parse(toolCall.function.arguments || '{}');
-      } catch (parseErr) {
-        logger.error(`Malformed tool args for ${name}: ${parseErr.message}`);
-        continue;
-      }
-
+      const name = toolCall.function?.name || toolCall.name;
       const taskCompleteAvailable = currentToolDefs.some(t => t.function && t.function.name === "task_complete");
 
-      const entry = toolIndex.get(name);
       let observation;
-
-      if (!entry || (name === 'task_complete' && !taskCompleteAvailable)) {
+      if (name === 'task_complete' && !taskCompleteAvailable) {
         observation = `Error: unknown tool "${name}"`;
-      } else if (entry.isMcp) {
-        observation = await callMcpTool(clients, entry.serverName, entry.toolName, args);
       } else {
-        observation = await entry.execute(args);
+        observation = await executeTool(allTools, clients, toolCall);
       }
 
       if (name === 'task_complete' && taskCompleteAvailable) {
