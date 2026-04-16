@@ -19,7 +19,6 @@
     "test": "node --test tests/**/*.test.js"
   },
   "dependencies": {
-    "@sanchaymittal/chanakya": "file:../chanakya",
     "commander": "^14.0.0"
   },
   "keywords": [

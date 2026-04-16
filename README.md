@@ -1,12 +1,18 @@
 # antigravity-cli
 
+[![npm](https://img.shields.io/npm/v/antigravity-cli)](https://www.npmjs.com/package/antigravity-cli)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
+
 A local agentic CLI powered by Antigravity sidecar
 
-## Installation
+I live in the terminal. Most of my coding tools already live there — git, tests, shell scripts. When I started using AI coding assistants, I wanted the same thing: just another CLI I could pipe into, chain with other tools, and call from scripts. Antigravity is the app I already use for AI access. `ag` is the CLI that brings it into my terminal workflow.
+
+## Quickstart
 
 ```bash
 npm install -g antigravity-cli
-ag --version
+ag status
 ```
 
 ## Requirements
@@ -65,3 +71,7 @@ ag run "Fix the bugs in src/cli.js and add tests"
 ## MCP (Model Context Protocol)
 
 `ag` reads MCP server configurations from `.ag/mcp.json` in the current working directory. It uses the HTTP transport format.
+
+## Contributing
+
+PRs welcome. Open an issue first for large changes. MIT licensed.
