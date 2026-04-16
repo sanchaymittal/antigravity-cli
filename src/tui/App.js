@@ -8,6 +8,7 @@ const { marked } = require('marked');
 const TerminalRenderer = require('marked-terminal');
 const os = require('os');
 const { exec } = require('child_process');
+const figlet = require("figlet");
 
 const { shutdownMcpServers } = require("../mcp/client");
 const { resolveModel } = require("../models");
@@ -41,7 +42,10 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
     exec('git rev-parse --abbrev-ref HEAD', (err, stdout) => { if (!err) setBranch(stdout.trim()); });
   }, []);
 
-  const headerHeight = 3;
+  const bannerText = figlet.textSync("antigravity", { font: "Slant" });
+  const bannerLineCount = bannerText.split("\n").length;
+  const headerHeight = bannerLineCount + 2; // +1 meta line, +1 separator
+
   const inputHeight = 3;
   const statusHeight = 1;
   const chatHeight = terminalHeight - headerHeight - inputHeight - statusHeight;
@@ -196,12 +200,10 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
     <Box flexDirection="column" height={terminalHeight}>
       {/* HEADER */}
       <Box flexDirection="column" paddingX={1} height={headerHeight}>
-        <Box>
-          <Text>🤖 <Text bold>antigravity-cli</Text> <Text dimColor> v{pkg.version}</Text></Text>
-        </Box>
-        <Box>
-          <Text dimColor>{displayMeta}</Text>
-        </Box>
+        {bannerText.split("\n").map((line, i) => (
+          <Text key={i} color="cyan" bold>{line}</Text>
+        ))}
+        <Text dimColor>{displayMeta}</Text>
         <Text dimColor>{"─".repeat(Math.max(0, terminalWidth - 2))}</Text>
       </Box>
 
@@ -219,12 +221,12 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
 
       {/* INPUT ROW */}
       <Box flexDirection="column" height={inputHeight}>
-        <Text dimColor>{"─".repeat(terminalWidth)}</Text>
+        <Text color="cyan">{"─".repeat(terminalWidth)}</Text>
         <Box paddingX={1}>
           <Text color="yellow" bold>{"> "}</Text>
           <TextInput value={input} onChange={setInput} onSubmit={handleSubmit} />
         </Box>
-        <Text dimColor>{"─".repeat(terminalWidth)}</Text>
+        <Text color="cyan">{"─".repeat(terminalWidth)}</Text>
       </Box>
 
       {/* STATUSBAR */}
@@ -234,7 +236,7 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
           <Text>MCP: {mcpData.clients.length}</Text>
         </Box>
         <Box>
-          <Text> {branch} · {modelKey}</Text>
+          <Text> <Text color="cyan">{branch}</Text> · {modelKey}</Text>
         </Box>
       </Box>
     </Box>
