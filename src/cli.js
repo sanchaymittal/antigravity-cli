@@ -9,6 +9,7 @@ const { version } = require('../package.json');
 const { VALUE_TO_MODEL_ENUM } = require('./model-enum');
 const { runAgent } = require('./agent');
 const { initMcpServers, shutdownMcpServers } = require('./mcp/client');
+const { snapshotUsage, diffUsage } = require('./sidecar/usage');
 
 function makeCtx() {
   return { sidecarInfo: null, sidecarInfoTimestamp: 0, SIDECAR_CACHE_TTL: 30000 };
@@ -20,7 +21,7 @@ function fatalNoSidecar() {
   process.exit(1);
 }
 
-// ─────────────────────────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const program = new Command();
 program
@@ -159,6 +160,8 @@ program
       process.exit(1);
     }
 
+    const usageBefore = snapshotUsage();
+
     const info = await discoverSidecar(ctx);
     if (!info) fatalNoSidecar();
 
@@ -170,6 +173,19 @@ program
 
     try {
       const result = await runAgent(ctx, intent, modelEnum, mcpData, { cwd: process.cwd() });
+      const usageAfter = snapshotUsage();
+      const tokenDelta = diffUsage(usageBefore, usageAfter);
+      if (tokenDelta) {
+        const total = tokenDelta.inputTokens + tokenDelta.outputTokens;
+        process.stderr.write(
+          `\n--- Token Usage ---\n` +
+          (tokenDelta.model ? `  Model:  ${tokenDelta.model}\n` : '') +
+          `  Input:  ${tokenDelta.inputTokens.toLocaleString()} tokens\n` +
+          `  Output: ${tokenDelta.outputTokens.toLocaleString()} tokens\n` +
+          `  Total:  ${total.toLocaleString()} tokens\n` +
+          `-------------------\n`
+        );
+      }
       await cleanup();
       process.exit(result.done ? 0 : 1);
     } catch (err) {
@@ -184,6 +200,29 @@ program
       console.error(`Error: ${err.message}`);
       process.exit(1);
     }
+  });
+
+// ── ag quota ─────────────────────────────────
+
+program
+  .command('quota')
+  .description('Show token usage for this session')
+  .action(() => {
+    const snap = snapshotUsage();
+    if (snap.inputTokens === 0 && snap.outputTokens === 0) {
+      console.log('No token usage recorded this session. Run `ag run` first.');
+      console.log('For quota limits: Antigravity app Settings > Model.');
+      return;
+    }
+    const total = snap.inputTokens + snap.outputTokens;
+    console.log('');
+    console.log('--- Session Token Usage ---');
+    if (snap.model) console.log(`  Model:  ${snap.model}`);
+    console.log(`  Input:  ${snap.inputTokens.toLocaleString()} tokens`);
+    console.log(`  Output: ${snap.outputTokens.toLocaleString()} tokens`);
+    console.log(`  Total:  ${total.toLocaleString()} tokens`);
+    console.log('--------------------------');
+    console.log('For quota limits: Antigravity app Settings > Model.');
   });
 
 program.parse();

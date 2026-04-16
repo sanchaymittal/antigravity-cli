@@ -1,4 +1,5 @@
 'use strict';
+const { recordUsage } = require('./usage');
 
 const { log, verboseLog } = require('../utils');
 const { extractText } = require('../images');
