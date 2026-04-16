@@ -21,6 +21,7 @@
     "src/mcp/",
     "src/sidecar/",
     "src/tools/",
+    "src/tui/",
     "README.md",
     "LICENSE"
   ],
@@ -31,7 +32,12 @@
   "dependencies": {
     "commander": "^14.0.0",
     "chalk": "^4.1.2",
-    "ora": "^5.4.1"
+    "ora": "^5.4.1",
+    "ink": "^3.2.0",
+    "react": "^17.0.2",
+    "ink-text-input": "^4.0.3",
+    "marked": "^4.3.0",
+    "marked-terminal": "^5.2.0"
   },
   "keywords": [
     "antigravity",
