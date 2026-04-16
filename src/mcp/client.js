@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 const { spawn } = require('child_process');
 
 function readMcpConfig() {
@@ -76,6 +77,60 @@ function spawnMcpServer(serverName, config) {
   });
 }
 
+function httpPost(url, body, sessionId) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const data = JSON.stringify(body);
+    const headers = {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(data),
+    };
+    if (sessionId) headers['mcp-session-id'] = sessionId;
+
+    const req = http.request(
+      { hostname: parsed.hostname, port: parsed.port, path: parsed.pathname, method: 'POST', headers },
+      (res) => {
+        let raw = '';
+        res.on('data', (chunk) => { raw += chunk; });
+        res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: raw }));
+      }
+    );
+    req.on('error', reject);
+    req.write(data);
+    req.end();
+  });
+}
+
+async function connectHttpMcpServer(serverName, url) {
+  // initialize
+  const id1 = 1;
+  const initRes = await httpPost(url, {
+    jsonrpc: '2.0', id: id1,
+    method: 'initialize',
+    params: {
+      protocolVersion: '2024-11-05',
+      capabilities: {},
+      clientInfo: { name: 'ag', version: '0.1.0' },
+    },
+  }, null);
+
+  if (initRes.status !== 200) throw new Error(`initialize HTTP ${initRes.status}: ${initRes.body.slice(0, 200)}`);
+  const sessionId = initRes.headers['mcp-session-id'];
+  if (!sessionId) throw new Error('No mcp-session-id in initialize response');
+
+  // notifications/initialized (notification — no id)
+  await httpPost(url, { jsonrpc: '2.0', method: 'notifications/initialized', params: {} }, sessionId);
+
+  const send = async (method, params) => {
+    const id = Date.now();
+    const res = await httpPost(url, { jsonrpc: '2.0', id, method, params }, sessionId);
+    if (!res.body) return {};
+    try { return JSON.parse(res.body).result ?? {}; } catch { return {}; }
+  };
+
+  return { send, sessionId, url, isHttp: true };
+}
+
 async function initMcpServers() {
   const config = readMcpConfig();
   const servers = config.mcpServers || {};
@@ -84,13 +139,17 @@ async function initMcpServers() {
 
   for (const [serverName, serverConfig] of Object.entries(servers)) {
     try {
-      const client = await spawnMcpServer(serverName, serverConfig);
+      const client = serverConfig.transport === 'http'
+        ? await connectHttpMcpServer(serverName, serverConfig.url)
+        : await spawnMcpServer(serverName, serverConfig);
 
-      client.proc.removeAllListeners('exit');
-      client.proc.on('exit', (code) => {
-        if (process.env.AG_DEBUG) process.stderr.write(`[mcp:${serverName}] exited with code ${code}\n`);
-        clients.delete(serverName);
-      });
+      if (!client.isHttp) {
+        client.proc.removeAllListeners('exit');
+        client.proc.on('exit', (code) => {
+          if (process.env.AG_DEBUG) process.stderr.write(`[mcp:${serverName}] exited with code ${code}\n`);
+          clients.delete(serverName);
+        });
+      }
 
       const result = await client.send('tools/list', {});
       const serverTools = result.tools || [];
@@ -132,6 +191,7 @@ async function callMcpTool(clients, serverName, toolName, args) {
 
 async function shutdownMcpServers(clients) {
   for (const [, client] of clients) {
+    if (client.isHttp) continue;
     try {
       client.proc.stdin.end();
       client.proc.kill('SIGTERM');
