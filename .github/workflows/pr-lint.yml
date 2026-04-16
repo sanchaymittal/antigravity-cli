@@ -1,0 +1,43 @@
+name: PR Lint
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Branch Name
+        run: |
+          BRANCH_NAME="${{ github.head_ref }}"
+          HUMAN_PATTERN="^(feat|fix|chore|docs|refactor|test|perf|ci|build|revert)/[a-z0-9][a-z0-9-]*$"
+          TOOLING_PATTERN="^chanakya/.+"
+
+          if [[ ! "$BRANCH_NAME" =~ $HUMAN_PATTERN ]] && [[ ! "$BRANCH_NAME" =~ $TOOLING_PATTERN ]]; then
+            echo "::error file=.github/workflows/pr-lint.yml::Branch name does not follow the required pattern."
+            echo "Human branch examples:"
+            echo "  feat/add-retry-logic"
+            echo "  fix/auth-timeout"
+            echo "Tooling branches (auto-created, pass-through):"
+            echo "  chanakya/<uuid>/<task-id>"
+            echo "Actual branch name: ${BRANCH_NAME}"
+            exit 1
+          fi
+        shell: bash
+
+      - name: Check PR Title
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          EXPECTED_TITLE_PATTERN="^(feat|fix|docs|test|chore|refactor|perf|ci|build|revert)(\\([a-z0-9-]+\\))?: .{1,100}$"
+
+          if [[ ! "$PR_TITLE" =~ $EXPECTED_TITLE_PATTERN ]]; then
+            echo "::error file=.github/workflows/pr-lint.yml::Pull Request title does not follow Conventional Commits pattern."
+            echo "Expected pattern: ${EXPECTED_TITLE_PATTERN}"
+            echo "Examples:"
+            echo "  feat(scope): add new feature"
+            echo "  fix: resolve bug"
+            echo "Actual PR title: ${PR_TITLE}"
+            exit 1
+          fi
+        shell: bash
