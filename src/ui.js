@@ -14,8 +14,8 @@ const colors = {
   bold: chalk.bold,
 };
 
-function createSpinner(text) {
-  return ora({ text, color: "cyan" });
+function createSpinner(text, opts = {}) {
+  return ora({ text, color: "cyan", ...opts });
 }
 
 function printBanner(model) {

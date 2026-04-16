@@ -32,7 +32,7 @@ async function runAgent(ctx, intent, modelEnum, mcpData, opts = {}) {
     { role: 'user', content: intent },
   ];
 
-  const spinner = createSpinner("Running...");
+  const spinner = createSpinner("Running...", { stream: process.stderr });
   spinner.start();
 
   let turn;
