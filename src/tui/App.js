@@ -6,9 +6,8 @@ const { Box, Text, useInput, useApp, useStdout } = require('ink');
 const TextInput = require('ink-text-input').default;
 const { marked } = require('marked');
 const TerminalRenderer = require('marked-terminal');
-const chalk = require('chalk');
 const os = require('os');
-const { execSync } = require('child_process');
+const { exec } = require('child_process');
 
 const { shutdownMcpServers } = require("../mcp/client");
 const { resolveModel } = require("../models");
@@ -39,10 +38,7 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
 
   const [branch, setBranch] = useState('main');
   useEffect(() => {
-    try {
-      const b = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-      setBranch(b);
-    } catch (e) {}
+    exec('git rev-parse --abbrev-ref HEAD', (err, stdout) => { if (!err) setBranch(stdout.trim()); });
   }, []);
 
   const headerHeight = 3;
@@ -54,36 +50,38 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
     const lines = [];
     messages.forEach((msg) => {
       if (msg.role === 'user') {
-        lines.push(chalk.gray(`> ${msg.content}`));
+        lines.push({ text: `> ${msg.content}`, color: 'gray' });
       } else if (msg.role === 'assistant') {
         if (msg.content) {
           const rendered = marked(msg.content).trim();
           rendered.split('\n').forEach((line, idx) => {
             if (idx === 0) {
-              lines.push(chalk.cyan('◆ ') + chalk.white(line));
+              lines.push({ text: line, color: 'white', prefix: '◆ ', prefixColor: 'cyan' });
             } else {
-              lines.push('  ' + chalk.white(line));
+              lines.push({ text: line, color: 'white', prefix: '  ' });
             }
           });
         }
         if (msg.tool_calls) {
           msg.tool_calls.forEach(tc => {
-            lines.push(chalk.magenta.dim(`  ⚙ ${tc.name} ${JSON.stringify(tc.args_parsed || tc.arguments)}`));
+            lines.push({ text: `  ⚙ ${tc.name} ${JSON.stringify(tc.args_parsed || tc.arguments)}`, color: 'magenta', dim: true });
           });
         }
       } else if (msg.role === 'tool') {
-        lines.push(chalk.magenta.dim(`  ⚙ ${msg.name} result`));
+        lines.push({ text: `  ⚙ ${msg.name} result`, color: 'magenta', dim: true });
       } else if (msg.role === 'error') {
-        lines.push(chalk.red(`Error: ${msg.content}`));
+        lines.push({ text: `Error: ${msg.content}`, color: 'red' });
       }
     });
     if (isThinking) {
-      lines.push(chalk.cyan('◆ ') + chalk.gray('thinking...'));
+      lines.push({ text: 'thinking...', color: 'gray', prefix: '◆ ', prefixColor: 'cyan' });
     }
     return lines;
   }, [messages, isThinking]);
 
   const maxScroll = Math.max(0, allLines.length - chatHeight);
+  const maxScrollRef = useRef(0);
+  maxScrollRef.current = maxScroll;
   
   useEffect(() => {
     if (autoScroll) {
@@ -103,9 +101,9 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
     if (key.downArrow) {
       setScrollOffset(prev => {
         const next = prev + 1;
-        if (next >= maxScroll) {
+        if (next >= maxScrollRef.current) {
           setAutoScroll(true);
-          return maxScroll;
+          return maxScrollRef.current;
         }
         return next;
       });
@@ -117,19 +115,18 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
     if (key.pageDown) {
       setScrollOffset(prev => {
         const next = prev + chatHeight;
-        if (next >= maxScroll) {
+        if (next >= maxScrollRef.current) {
           setAutoScroll(true);
-          return maxScroll;
+          return maxScrollRef.current;
         }
         return next;
       });
     }
-  });
+  }, { isActive: !isThinking });
 
   const handleSubmit = async (value) => {
-    if (isThinking) return;
     const trimmed = value.trim();
-    if (!trimmed) return;
+    if (isThinking || !trimmed) return;
     setInput('');
     setAutoScroll(true);
 
@@ -191,6 +188,10 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
 
   const visibleLines = allLines.slice(scrollOffset, scrollOffset + chatHeight);
 
+  const headerMeta = `${modelKey} · ${displayCwd}`;
+  const maxMeta = terminalWidth - 4;
+  const displayMeta = headerMeta.length > maxMeta ? headerMeta.slice(0, maxMeta - 1) + "…" : headerMeta;
+
   return (
     <Box flexDirection="column" height={terminalHeight}>
       {/* HEADER */}
@@ -199,26 +200,21 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
           <Text>🤖 <Text bold>antigravity-cli</Text> <Text dimColor> v{pkg.version}</Text></Text>
         </Box>
         <Box>
-          <Text dimColor>{modelKey} · {displayCwd}</Text>
+          <Text dimColor>{displayMeta}</Text>
         </Box>
         <Text dimColor>{"─".repeat(Math.max(0, terminalWidth - 2))}</Text>
       </Box>
 
       {/* CONVERSATION AREA */}
       <Box flexDirection="column" flexGrow={1} paddingX={1}>
+        {scrollOffset > 0 && <Box><Text color="yellow">↑ {scrollOffset} more above</Text></Box>}
+        {allLines.length > scrollOffset + chatHeight && <Box><Text color="yellow">↓ {allLines.length - scrollOffset - chatHeight} more below</Text></Box>}
         {visibleLines.map((line, i) => (
-          <Text key={i} wrap="truncate-end">{line}</Text>
+          <Box key={i}>
+            {line.prefix && <Text color={line.prefixColor}>{line.prefix}</Text>}
+            <Text color={line.color} dimColor={line.dim} bold={line.bold}>{line.text}</Text>
+          </Box>
         ))}
-        {scrollOffset > 0 && (
-          <Box position="absolute" top={headerHeight} right={2}>
-            <Text yellow>↑ {scrollOffset} more</Text>
-          </Box>
-        )}
-        {allLines.length > scrollOffset + chatHeight && (
-          <Box position="absolute" bottom={inputHeight + statusHeight} right={2}>
-            <Text yellow>↓ {allLines.length - (scrollOffset + chatHeight)} more</Text>
-          </Box>
-        )}
       </Box>
 
       {/* INPUT ROW */}
