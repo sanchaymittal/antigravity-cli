@@ -61,9 +61,15 @@ function formatMessagesAsPrompt(messages, tools) {
         // Format assistant tool calls so the model sees the conversation flow
         const toolCallTexts = msg.tool_calls.map((tc) => {
           const fn = tc.function || {};
-          const args = fn.arguments ? JSON.parse(fn.arguments) : {};
+          let args;
+          try {
+            args = fn.arguments ? JSON.parse(fn.arguments) : {};
+          } catch (e) {
+            console.warn(`Skipping malformed tool call args in history: ${e.message}`);
+            return null;
+          }
           return `<tool_call>${JSON.stringify({ name: fn.name, arguments: args })}</tool_call>`;
-        });
+        }).filter(Boolean);
         parts.push(`[Assistant]\n${content || ''}${toolCallTexts.join('\n')}\n`);
       } else {
         parts.push(`[Assistant]\n${content}\n`);

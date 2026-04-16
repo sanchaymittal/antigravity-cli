@@ -46,7 +46,13 @@ async function runAgent(ctx, intent, modelEnum, mcpData) {
       ? allToolDefs.filter((t) => t.function.name !== 'task_complete')
       : allToolDefs;
 
-    const result = await callRawInference(ctx, messages, modelEnum, currentToolDefs);
+    let result;
+    try {
+      result = await callRawInference(ctx, messages, modelEnum, currentToolDefs);
+    } catch (err) {
+      console.error(`Inference error: ${err.message}`);
+      process.exit(1);
+    }
 
     if (result.content) {
       process.stdout.write(result.content);
@@ -66,8 +72,9 @@ async function runAgent(ctx, intent, modelEnum, mcpData) {
       let args;
       try {
         args = JSON.parse(toolCall.function.arguments || '{}');
-      } catch {
-        args = {};
+      } catch (parseErr) {
+        console.error(`Malformed tool args for ${name}: ${parseErr.message}`);
+        continue;
       }
 
       const taskCompleteAvailable = currentToolDefs.some(t => t.function && t.function.name === "task_complete");
