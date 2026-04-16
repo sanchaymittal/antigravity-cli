@@ -69,10 +69,12 @@ async function runAgent(ctx, intent, modelEnum, mcpData) {
         args = {};
       }
 
+      const taskCompleteAvailable = currentToolDefs.some(t => t.function && t.function.name === "task_complete");
+
       const entry = toolIndex.get(name);
       let observation;
 
-      if (!entry) {
+      if (!entry || (name === 'task_complete' && !taskCompleteAvailable)) {
         observation = `Error: unknown tool "${name}"`;
       } else if (entry.isMcp) {
         observation = await callMcpTool(clients, entry.serverName, entry.toolName, args);
@@ -80,7 +82,7 @@ async function runAgent(ctx, intent, modelEnum, mcpData) {
         observation = await entry.execute(args);
       }
 
-      if (name === 'task_complete') {
+      if (name === 'task_complete' && taskCompleteAvailable) {
         process.stdout.write(`\nDone: ${observation}\n`);
         return { done: true };
       }
