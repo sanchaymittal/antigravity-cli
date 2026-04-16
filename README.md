@@ -8,6 +8,10 @@ A local agentic CLI powered by Antigravity sidecar
 
 I love using CLI tools — they're composable, scriptable, and always there. Antigravity is the perfect AI orchestrator. So why not a Claude Code version of it? `ag` is exactly that.
 
+## Preview
+
+![antigravity-cli TUI](screenshot_v0.1.1.png)
+
 ## Quickstart
 
 ```bash
@@ -17,7 +21,7 @@ ag status
 
 ## Requirements
 
-- Node.js >= 18
+- Node.js &gt;= 18
 - Antigravity.app running
 
 ## Commands
@@ -35,8 +39,8 @@ Check if the Antigravity sidecar is reachable.
 Send a one-shot message to Antigravity. Reads from stdin if no message is provided.
 
 **Flags:**
-- `-m, --model <model>`: Model to use
-- `-s, --system <prompt>`: System prompt
+- `-m, --model &lt;model&gt;`: Model to use
+- `-s, --system &lt;prompt&gt;`: System prompt
 
 **Examples:**
 ```bash
@@ -45,12 +49,12 @@ echo "Explain this code" | ag chat
 ag chat -m antigravity-gemini-3.1-pro-high "Deep thought"
 ```
 
-### `ag run <intent>`
+### `ag run &lt;intent&gt;`
 
 Run an agentic task. This enters an agentic loop where the CLI can read/write files, run commands, and use MCP tools. The loop continues until the agent calls `task_complete`.
 
 **Flags:**
-- `-m, --model <model>`: Model to use
+- `-m, --model &lt;model&gt;`: Model to use
 
 **Example:**
 ```bash
