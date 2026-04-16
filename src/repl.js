@@ -21,12 +21,12 @@ async function replTurn(ctx, messages, modelEnum, mcpData, inferFn) {
   const infer = inferFn || ((c, m, e, t) => callRawInference(c, m, e, t));
 
   for (let i = 0; i < MAX_TOOL_CALLS_PER_TURN; i++) {
-    process.stderr.write("\x1b[2mThinking...\x1b[0m\n");
+    if (process.stderr.isTTY) process.stderr.write("\x1b[2mThinking...\x1b[0m\n");
     
     let response;
     try {
       response = await infer(ctx, messages, modelEnum, toolDefs);
-      process.stderr.write("\x1b[1A\x1b[2K");
+      if (process.stderr.isTTY) process.stderr.write("\x1b[1A\x1b[2K");
     } catch (err) {
       throw err;
     }
@@ -74,9 +74,13 @@ async function runRepl(ctx, modelEnum, mcpData, modelKey) {
   rl.on("line", async (line) => {
     const trimmed = line.trim();
     if (!trimmed) { rl.prompt(); return; }
-    if (trimmed === "exit" || trimmed === "quit") { rl.close(); return; }
+    if (trimmed === "exit" || trimmed === "quit") {
+      if (busy) { rl.prompt(); return; }
+      rl.close();
+      return;
+    }
 
-    if (busy) { rl.prompt(); return; }
+    rl.pause();
     busy = true;
 
     messages.push({ role: "user", content: trimmed });
@@ -88,6 +92,7 @@ async function runRepl(ctx, modelEnum, mcpData, modelKey) {
     }
 
     busy = false;
+    rl.resume();
     rl.prompt();
   });
 
