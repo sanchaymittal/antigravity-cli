@@ -1,74 +1,67 @@
 # antigravity-cli
 
-CLI for [Antigravity](https://codeium.com/antigravity) — chat with Claude, Gemini, and GPT-OSS through your Antigravity subscription. No API keys needed.
+A local agentic CLI powered by Antigravity sidecar
 
-```
-ag chat "explain this regex: ^(?:https?)://"
-```
-
-## How it works
-
-```
-ag → sidecar discovery → H2 ConnectRPC → Antigravity sidecar → Cloud AI
-```
-
-Talks directly to Antigravity's language server process. No bridge extension required — just Antigravity running.
-
-## Install
+## Installation
 
 ```bash
 npm install -g antigravity-cli
+ag --version
 ```
-
-Or run without installing:
-
-```bash
-npx antigravity-cli chat "hello"
-```
-
-## Usage
-
-```bash
-# List available models
-ag models
-
-# Check Antigravity sidecar is reachable
-ag status
-
-# One-shot chat (default: claude-sonnet-4-6)
-ag chat "write a Python hello world"
-
-# Use a different model
-ag chat -m antigravity-gemini-3.1-pro-high "explain async/await"
-ag chat -m antigravity-claude-opus-4-6-thinking "review this architecture"
-
-# Add a system prompt
-ag chat -s "You are a code reviewer" "review this PR description"
-```
-
-## Available Models
-
-| Model ID | Description |
-|----------|-------------|
-| `antigravity-claude-sonnet-4-6` | Claude Sonnet 4.6 with Thinking **(default)** |
-| `antigravity-claude-opus-4-6-thinking` | Claude Opus 4.6 with Thinking |
-| `antigravity-gemini-3.1-pro-high` | Gemini 3.1 Pro — High thinking |
-| `antigravity-gemini-3.1-pro-low` | Gemini 3.1 Pro — Low thinking |
-| `antigravity-gemini-3-flash` | Gemini 3 Flash |
-| `antigravity-gpt-oss-120b` | GPT-OSS 120B Medium |
 
 ## Requirements
 
-- [Antigravity](https://codeium.com/antigravity) installed and running
-- Node.js 18+
+- Node.js >= 18
+- Antigravity.app running
 
-## Debug
+## Commands
 
+### `ag models`
+
+List all available Antigravity models.
+
+### `ag status`
+
+Check if the Antigravity sidecar is reachable.
+
+### `ag chat [message]`
+
+Send a one-shot message to Antigravity. Reads from stdin if no message is provided.
+
+**Flags:**
+- `-m, --model <model>`: Model to use
+- `-s, --system <prompt>`: System prompt
+
+**Examples:**
 ```bash
-AG_DEBUG=1 ag chat "hello"    # show discovery + inference logs
-AG_DEBUG=2 ag chat "hello"    # verbose payload dumps
+ag chat "Hello world"
+echo "Explain this code" | ag chat
+ag chat -m antigravity-gemini-3.1-pro-high "Deep thought"
 ```
 
-## Credits
+### `ag run <intent>`
 
-Sidecar communication code vendored from [marcodiniz/ag-local-bridge](https://github.com/marcodiniz/ag-local-bridge).
+Run an agentic task. This enters an agentic loop where the CLI can read/write files, run commands, and use MCP tools. The loop continues until the agent calls `task_complete`.
+
+**Flags:**
+- `-m, --model <model>`: Model to use
+
+**Example:**
+```bash
+ag run "Fix the bugs in src/cli.js and add tests"
+```
+
+## Models
+
+| Model | Use Tier |
+| :--- | :--- |
+| `antigravity-gemini-3-flash` | coding/fast |
+| `antigravity-gemini-3.1-pro-low` | review |
+| `antigravity-gemini-3.1-pro-high` | thinking/gemini |
+| `antigravity-claude-sonnet-4-6` | thinking/default |
+| `antigravity-claude-opus-4-6-thinking` | thinking/most capable |
+| `antigravity-gpt-oss-120b` | general |
+
+## MCP (Model Context Protocol)
+
+`ag` reads MCP server configurations from `.ag/mcp.json` in the current working directory. It uses the HTTP transport format.
