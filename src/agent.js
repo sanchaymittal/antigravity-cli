@@ -2,6 +2,7 @@
 
 const _raw = require('./sidecar/raw');
 const { buildAllTools, executeTool } = require('./tools/dispatch.js');
+const { createSpinner, printToolCall, printError, printSuccess } = require("./ui");
 
 const MAX_TURNS = 50;
 
@@ -31,6 +32,9 @@ async function runAgent(ctx, intent, modelEnum, mcpData, opts = {}) {
     { role: 'user', content: intent },
   ];
 
+  const spinner = createSpinner("Running...");
+  spinner.start();
+
   let turn;
   for (turn = 0; turn < MAX_TURNS; turn++) {
     const currentToolDefs = turn === 0
@@ -41,15 +45,21 @@ async function runAgent(ctx, intent, modelEnum, mcpData, opts = {}) {
     try {
       result = await _raw.callRawInference(ctx, messages, modelEnum, currentToolDefs);
     } catch (err) {
+      spinner.fail("Error");
       throw new Error(`Inference error: ${err.message}`);
     }
 
     if (result.content) {
+      spinner.stop();
       logger.write(result.content);
       if (!result.content.endsWith('\n')) logger.write('\n');
+      spinner.start();
     }
 
-    if (!result.toolCalls || result.toolCalls.length === 0) break;
+    if (!result.toolCalls || result.toolCalls.length === 0) {
+      spinner.succeed("Done");
+      break;
+    }
 
     messages.push({
       role: 'assistant',
@@ -59,7 +69,13 @@ async function runAgent(ctx, intent, modelEnum, mcpData, opts = {}) {
 
     for (const toolCall of result.toolCalls) {
       const name = toolCall.function?.name || toolCall.name;
+      const args = toolCall.function?.arguments || toolCall.arguments || toolCall.args_parsed;
       const taskCompleteAvailable = currentToolDefs.some(t => t.function && t.function.name === "task_complete");
+
+      spinner.stop();
+      printToolCall(name, typeof args === 'string' ? JSON.parse(args) : args);
+      spinner.start();
+      spinner.text = "Running...";
 
       let observation;
       if (name === 'task_complete' && !taskCompleteAvailable) {
@@ -69,6 +85,7 @@ async function runAgent(ctx, intent, modelEnum, mcpData, opts = {}) {
       }
 
       if (name === 'task_complete' && taskCompleteAvailable) {
+        spinner.succeed("Done");
         logger.write(`\nDone: ${observation}\n`);
         return { done: true };
       }
@@ -82,7 +99,8 @@ async function runAgent(ctx, intent, modelEnum, mcpData, opts = {}) {
     }
   }
 
-  if (turn > 0) {
+  if (turn >= MAX_TURNS) {
+    spinner.fail("Max turns reached");
     logger.error('Warning: agent reached max turns without calling task_complete');
   }
 
