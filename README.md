@@ -6,7 +6,7 @@
 
 A local agentic CLI powered by Antigravity sidecar
 
-I live in the terminal. Most of my coding tools already live there — git, tests, shell scripts. When I started using AI coding assistants, I wanted the same thing: just another CLI I could pipe into, chain with other tools, and call from scripts. Antigravity is the app I already use for AI access. `ag` is the CLI that brings it into my terminal workflow.
+I love using CLI tools — they're composable, scriptable, and always there. Antigravity is the perfect AI orchestrator. So why not a Claude Code version of it? `ag` is exactly that.
 
 ## Quickstart
 
