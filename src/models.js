@@ -1,8 +1,8 @@
 'use strict';
 
-// ─────────────────────────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Model Mapping: string ID → sidecar enum value
-// ─────────────────────────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const MODEL_MAP = {
   // Antigravity models (PLACEHOLDER_M enum values, 1000+ range)
@@ -108,7 +108,7 @@ const MODEL_MAP = {
   },
 };
 
-const DEFAULT_MODEL_KEY = 'antigravity-claude-sonnet-4-6';
+const DEFAULT_MODEL_KEY = 'antigravity-gemini-3-flash';
 
 function resolveModel(requestedModel) {
   if (!requestedModel || requestedModel === 'antigravity') {

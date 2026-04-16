@@ -3,7 +3,7 @@ const readline = require('node:readline');
 const { callRawInference } = require('./sidecar/raw.js');
 const { shutdownMcpServers } = require('./mcp/client.js');
 const { buildAllTools, executeTool } = require('./tools/dispatch.js');
-const { colors, createSpinner, printBanner, printToolCall, printResponse, printError } = require("./ui");
+const { colors, printBanner, printToolCall, printResponse, printError } = require("./ui");
 
 const MAX_TOOL_CALLS_PER_TURN = 15;
 
@@ -21,15 +21,13 @@ async function replTurn(ctx, messages, modelEnum, mcpData, inferFn) {
   const infer = inferFn || ((c, m, e, t) => callRawInference(c, m, e, t));
 
   for (let i = 0; i < MAX_TOOL_CALLS_PER_TURN; i++) {
-    const spinner = createSpinner("Thinking...", { stream: process.stderr });
-    spinner.start();
+    process.stderr.write("\x1b[2mThinking...\x1b[0m\n");
     
     let response;
     try {
       response = await infer(ctx, messages, modelEnum, toolDefs);
-      spinner.succeed("");
+      process.stderr.write("\x1b[1A\x1b[2K");
     } catch (err) {
-      spinner.fail("Error");
       throw err;
     }
 
@@ -57,7 +55,7 @@ async function replTurn(ctx, messages, modelEnum, mcpData, inferFn) {
   printError('max tool calls per turn reached');
 }
 
-async function runRepl(ctx, modelEnum, mcpData) {
+async function runRepl(ctx, modelEnum, mcpData, modelKey) {
   const messages = [{ role: 'system', content: SYSTEM_PROMPT(process.cwd()) }];
 
   const rl = readline.createInterface({
@@ -66,7 +64,7 @@ async function runRepl(ctx, modelEnum, mcpData) {
     terminal: process.stdin.isTTY,
   });
 
-  printBanner(modelEnum);
+  printBanner(modelKey || modelEnum);
 
   const promptStr = "\x1b[36m\x1b[1m❯\x1b[0m ";
   rl.setPrompt(promptStr);
