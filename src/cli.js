@@ -9,7 +9,7 @@ const { version } = require('../package.json');
 const { VALUE_TO_MODEL_ENUM } = require('./model-enum');
 const { runAgent } = require('./agent');
 const { initMcpServers, shutdownMcpServers } = require('./mcp/client');
-const { snapshotUsage, diffUsage } = require('./sidecar/usage');
+const { snapshotUsage, diffUsage, persistRunUsage, loadHistory } = require('./sidecar/usage');
 
 function makeCtx() {
   return { sidecarInfo: null, sidecarInfoTimestamp: 0, SIDECAR_CACHE_TTL: 30000 };
@@ -21,7 +21,7 @@ function fatalNoSidecar() {
   process.exit(1);
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ─────────────────────────────────────────────
 
 const program = new Command();
 program
@@ -176,6 +176,7 @@ program
       const usageAfter = snapshotUsage();
       const tokenDelta = diffUsage(usageBefore, usageAfter);
       if (tokenDelta) {
+        persistRunUsage(tokenDelta);
         const total = tokenDelta.inputTokens + tokenDelta.outputTokens;
         process.stderr.write(
           `\n--- Token Usage ---\n` +
@@ -206,22 +207,27 @@ program
 
 program
   .command('quota')
-  .description('Show token usage for this session')
+  .description('Show token usage history across ag run sessions')
   .action(() => {
-    const snap = snapshotUsage();
-    if (snap.inputTokens === 0 && snap.outputTokens === 0) {
-      console.log('No token usage recorded this session. Run `ag run` first.');
+    const history = loadHistory();
+    if (history.length === 0) {
+      console.log('No token usage recorded yet. Run `ag run` first.');
       console.log('For quota limits: Antigravity app Settings > Model.');
       return;
     }
-    const total = snap.inputTokens + snap.outputTokens;
+    const totals = history.reduce((acc, e) => {
+      acc.input += e.inputTokens || 0;
+      acc.output += e.outputTokens || 0;
+      return acc;
+    }, { input: 0, output: 0 });
+    const lastModel = history[history.length - 1].model;
     console.log('');
-    console.log('--- Session Token Usage ---');
-    if (snap.model) console.log(`  Model:  ${snap.model}`);
-    console.log(`  Input:  ${snap.inputTokens.toLocaleString()} tokens`);
-    console.log(`  Output: ${snap.outputTokens.toLocaleString()} tokens`);
-    console.log(`  Total:  ${total.toLocaleString()} tokens`);
-    console.log('--------------------------');
+    console.log(`--- Token Usage (last ${history.length} runs) ---`);
+    if (lastModel) console.log(`  Last model: ${lastModel}`);
+    console.log(`  Input:  ${totals.input.toLocaleString()} tokens`);
+    console.log(`  Output: ${totals.output.toLocaleString()} tokens`);
+    console.log(`  Total:  ${(totals.input + totals.output).toLocaleString()} tokens`);
+    console.log('------------------------------------------');
     console.log('For quota limits: Antigravity app Settings > Model.');
   });
 

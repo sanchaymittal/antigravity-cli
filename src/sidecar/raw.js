@@ -264,6 +264,7 @@ async function callRawInference(ctx, messages, modelEnum, tools = null) {
   );
 
   const responseText = (result && result.response) || '';
+  if (result) { const _u = result.usage || result.tokens || result.usageMetadata || null; if (_u) { recordUsage({ inputTokens: _u.inputTokens != null ? _u.inputTokens : (_u.promptTokenCount || 0), outputTokens: _u.outputTokens != null ? _u.outputTokens : (_u.candidatesTokenCount || 0), model: result.model || null }); } }
   // Dump full raw LLM token outputs explicitly to the file to trace XML tool generations
   verboseLog(ctx, `🧠 Raw response dump (${responseText.length} chars)`, responseText);
   log(ctx, `🧠 Raw response: ${responseText.length} chars`);

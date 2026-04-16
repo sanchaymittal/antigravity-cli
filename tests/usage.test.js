@@ -26,3 +26,22 @@ test('snapshotUsage returns numeric fields', () => {
   assert.ok(typeof snap.inputTokens === 'number');
   assert.ok(typeof snap.outputTokens === 'number');
 });
+
+test('recordUsage accumulates into snapshotUsage', () => {
+  const { recordUsage, snapshotUsage } = require('../src/sidecar/usage');
+  const before = snapshotUsage();
+  recordUsage({ inputTokens: 42, outputTokens: 17, model: 'test-model' });
+  const after = snapshotUsage();
+  assert.strictEqual(after.inputTokens - before.inputTokens, 42);
+  assert.strictEqual(after.outputTokens - before.outputTokens, 17);
+  assert.strictEqual(after.model, 'test-model');
+});
+
+test('recordUsage handles zero-value tokens (does not drop them)', () => {
+  const { recordUsage, snapshotUsage } = require('../src/sidecar/usage');
+  const before = snapshotUsage();
+  recordUsage({ inputTokens: 0, outputTokens: 5, model: null });
+  const after = snapshotUsage();
+  assert.strictEqual(after.inputTokens - before.inputTokens, 0);
+  assert.strictEqual(after.outputTokens - before.outputTokens, 5);
+});
