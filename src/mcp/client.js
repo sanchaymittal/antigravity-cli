@@ -83,6 +83,7 @@ function httpPost(url, body, sessionId) {
     const data = JSON.stringify(body);
     const headers = {
       'Content-Type': 'application/json',
+      'Accept': 'application/json, text/event-stream',
       'Content-Length': Buffer.byteLength(data),
     };
     if (sessionId) headers['mcp-session-id'] = sessionId;
