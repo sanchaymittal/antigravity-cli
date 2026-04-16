@@ -21,6 +21,10 @@ const readFile = {
   },
   execute: async ({ path: filePath }) => {
     try {
+      const stats = fs.statSync(filePath);
+      if (stats.size > 1024 * 1024) {
+        return 'File too large (>1MB). Use run_bash with head/grep to read portions.';
+      }
       return fs.readFileSync(filePath, 'utf8');
     } catch (err) {
       return `Error reading file: ${err.message}`;
@@ -72,7 +76,7 @@ const runBash = {
   },
   execute: async ({ command }) => {
     try {
-      const stdout = execSync(command, { encoding: 'utf8', timeout: 30000, shell: true });
+      const stdout = execSync(command, { encoding: 'utf8', timeout: 120000, shell: true });
       return JSON.stringify({ stdout, stderr: '', exit_code: 0 });
     } catch (err) {
       return JSON.stringify({

@@ -40,7 +40,8 @@ async function runAgent(ctx, intent, modelEnum, mcpData) {
     { role: 'user', content: intent },
   ];
 
-  for (let turn = 0; turn < MAX_TURNS; turn++) {
+  let turn;
+  for (turn = 0; turn < MAX_TURNS; turn++) {
     const currentToolDefs = turn === 0
       ? allToolDefs.filter((t) => t.function.name !== 'task_complete')
       : allToolDefs;
@@ -96,7 +97,7 @@ async function runAgent(ctx, intent, modelEnum, mcpData) {
     }
   }
 
-  if (messages.length > 2) {
+  if (turn > 0) {
     process.stderr.write('Warning: agent reached max turns without calling task_complete\n');
   }
 
