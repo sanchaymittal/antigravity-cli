@@ -70,31 +70,36 @@ async function runRepl(ctx, modelEnum, mcpData) {
 
   const promptStr = "\x1b[36m\x1b[1m❯\x1b[0m ";
   rl.setPrompt(promptStr);
-  const prompt = () => rl.prompt();
-  prompt();
 
-  try {
-    for await (const line of rl) {
-      const input = line.trim();
-      if (!input) { prompt(); continue; }
-      if (input === 'exit' || input === 'quit') break;
+  let busy = false;
 
-      messages.push({ role: 'user', content: input });
+  rl.on("line", async (line) => {
+    const trimmed = line.trim();
+    if (!trimmed) { rl.prompt(); return; }
+    if (trimmed === "exit" || trimmed === "quit") { rl.close(); return; }
 
-      try {
-        await replTurn(ctx, messages, modelEnum, mcpData);
-      } catch (err) {
-        printError(err.message);
-      }
+    if (busy) { rl.prompt(); return; }
+    busy = true;
 
-      prompt();
+    messages.push({ role: "user", content: trimmed });
+
+    try {
+      await replTurn(ctx, messages, modelEnum, mcpData);
+    } catch (err) {
+      printError(err.message);
     }
-  } finally {
-    rl.close();
-    await shutdownMcpServers(mcpData.clients);
-  }
 
-  process.exit(0);
+    busy = false;
+    rl.prompt();
+  });
+
+  rl.on("close", async () => {
+    process.stdout.write("\n");
+    await shutdownMcpServers(mcpData.clients);
+    process.exit(0);
+  });
+
+  rl.prompt();
 }
 
 module.exports = { runRepl, replTurn };
