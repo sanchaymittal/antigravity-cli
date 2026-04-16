@@ -26,10 +26,14 @@ function printBanner(model) {
 }
 
 function printToolCall(name, args) {
+  let parsed = args;
+  if (typeof args === "string") {
+    try { parsed = JSON.parse(args); } catch { parsed = null; }
+  }
   const preview = (() => {
-    if (!args) return "";
-    const first = Object.values(args)[0];
-    return first ? colors.dim(" " + String(first).slice(0, 60)) : "";
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return "";
+    const first = Object.values(parsed)[0];
+    return first ? colors.dim(" " + String(first).replace(/\n/g, " ").slice(0, 60)) : "";
   })();
   console.log(colors.tool("  ⚙ " + name) + preview);
 }

@@ -73,7 +73,11 @@ async function runAgent(ctx, intent, modelEnum, mcpData, opts = {}) {
       const taskCompleteAvailable = currentToolDefs.some(t => t.function && t.function.name === "task_complete");
 
       spinner.stop();
-      printToolCall(name, typeof args === 'string' ? JSON.parse(args) : args);
+      let parsedArgs = args;
+      if (typeof args === "string") {
+        try { parsedArgs = JSON.parse(args); } catch { parsedArgs = null; }
+      }
+      printToolCall(name, parsedArgs);
       spinner.start();
       spinner.text = "Running...";
 
