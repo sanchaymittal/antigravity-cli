@@ -1,19 +1,22 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const http = require('http');
 const { spawn } = require('child_process');
 
 let _rpcId = 0;
 
-function readMcpConfig() {
-  const configPath = path.join(process.cwd(), '.ag', 'mcp.json');
-  try {
-    return JSON.parse(fs.readFileSync(configPath, 'utf8'));
-  } catch {
-    return { mcpServers: {} };
+function readMcpConfig(cwd) {
+  const local = path.join(cwd, '.ag', 'mcp.json');
+  const home = path.join(os.homedir(), '.ag', 'mcp.json');
+  for (const configPath of [local, home]) {
+    try {
+      return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    } catch { /* try next */ }
   }
+  return { mcpServers: {} };
 }
 
 function spawnMcpServer(serverName, config) {
@@ -111,7 +114,6 @@ function httpPost(url, body, sessionId) {
 }
 
 async function connectHttpMcpServer(serverName, url) {
-  // initialize
   const id1 = ++_rpcId;
   const initRes = await httpPost(url, {
     jsonrpc: '2.0', id: id1,
@@ -127,7 +129,6 @@ async function connectHttpMcpServer(serverName, url) {
   const sessionId = initRes.headers['mcp-session-id'];
   if (!sessionId) throw new Error('No mcp-session-id in initialize response');
 
-  // notifications/initialized (notification — no id)
   await httpPost(url, { jsonrpc: '2.0', method: 'notifications/initialized', params: {} }, sessionId);
 
   const send = async (method, params) => {
@@ -140,8 +141,9 @@ async function connectHttpMcpServer(serverName, url) {
   return { send, sessionId, url, isHttp: true };
 }
 
-async function initMcpServers() {
-  const config = readMcpConfig();
+async function initMcpServers(opts = {}) {
+  const cwd = opts.cwd ?? process.cwd();
+  const config = readMcpConfig(cwd);
   const servers = config.mcpServers || {};
   const clients = new Map();
   const tools = [];
@@ -199,13 +201,27 @@ async function callMcpTool(clients, serverName, toolName, args) {
 }
 
 async function shutdownMcpServers(clients) {
+  const shutdownPromises = [];
   for (const [, client] of clients) {
     if (client.isHttp) continue;
-    try {
-      client.proc.stdin.end();
-      client.proc.kill('SIGTERM');
-    } catch { /* already dead */ }
+    shutdownPromises.push(
+      (async () => {
+        try {
+          const id = ++_rpcId;
+          const msg = JSON.stringify({ jsonrpc: '2.0', id, method: 'shutdown', params: {} }) + '\n';
+          await Promise.race([
+            new Promise((resolve) => { client.proc.stdin.write(msg, resolve); }),
+            new Promise((resolve) => setTimeout(resolve, 200)),
+          ]);
+        } catch { /* ignore — proc may already be dead */ }
+        try {
+          client.proc.stdin.end();
+          client.proc.kill('SIGTERM');
+        } catch { /* already dead */ }
+      })()
+    );
   }
+  await Promise.all(shutdownPromises);
 }
 
 module.exports = { initMcpServers, callMcpTool, shutdownMcpServers };

@@ -1,21 +1,28 @@
 'use strict';
 
-const { callRawInference } = require('./sidecar/raw');
+const _raw = require('./sidecar/raw');
 const { BUILTIN_TOOLS } = require('./tools/builtin');
 const { callMcpTool } = require('./mcp/client');
 
 const MAX_TURNS = 50;
 
-function makeSystemPrompt() {
+function makeSystemPrompt(cwd) {
   return [
-    `You are a coding agent working in ${process.cwd()}.`,
+    `You are a coding agent working in ${cwd}.`,
     'Use tools to complete the task. When done, call task_complete with a summary.',
     'Do not ask for clarification — proceed with reasonable assumptions.',
     'Do not hallucinate tool results — wait for real observations before continuing.',
   ].join('\n');
 }
 
-async function runAgent(ctx, intent, modelEnum, mcpData) {
+async function runAgent(ctx, intent, modelEnum, mcpData, opts = {}) {
+  const logger = opts.logger ?? {
+    log: (...a) => console.log(...a),
+    error: (...a) => console.error(...a),
+    write: (s) => process.stdout.write(s),
+  };
+  const cwd = opts.cwd ?? process.cwd();
+
   const { tools: mcpTools, clients } = mcpData;
 
   const toolIndex = new Map();
@@ -36,7 +43,7 @@ async function runAgent(ctx, intent, modelEnum, mcpData) {
   ];
 
   const messages = [
-    { role: 'system', content: makeSystemPrompt() },
+    { role: 'system', content: makeSystemPrompt(cwd) },
     { role: 'user', content: intent },
   ];
 
@@ -48,15 +55,14 @@ async function runAgent(ctx, intent, modelEnum, mcpData) {
 
     let result;
     try {
-      result = await callRawInference(ctx, messages, modelEnum, currentToolDefs);
+      result = await _raw.callRawInference(ctx, messages, modelEnum, currentToolDefs);
     } catch (err) {
-      console.error(`Inference error: ${err.message}`);
-      process.exit(1);
+      throw new Error(`Inference error: ${err.message}`);
     }
 
     if (result.content) {
-      process.stdout.write(result.content);
-      if (!result.content.endsWith('\n')) process.stdout.write('\n');
+      logger.write(result.content);
+      if (!result.content.endsWith('\n')) logger.write('\n');
     }
 
     if (!result.toolCalls || result.toolCalls.length === 0) break;
@@ -73,7 +79,7 @@ async function runAgent(ctx, intent, modelEnum, mcpData) {
       try {
         args = JSON.parse(toolCall.function.arguments || '{}');
       } catch (parseErr) {
-        console.error(`Malformed tool args for ${name}: ${parseErr.message}`);
+        logger.error(`Malformed tool args for ${name}: ${parseErr.message}`);
         continue;
       }
 
@@ -91,7 +97,7 @@ async function runAgent(ctx, intent, modelEnum, mcpData) {
       }
 
       if (name === 'task_complete' && taskCompleteAvailable) {
-        process.stdout.write(`\nDone: ${observation}\n`);
+        logger.write(`\nDone: ${observation}\n`);
         return { done: true };
       }
 
@@ -105,7 +111,7 @@ async function runAgent(ctx, intent, modelEnum, mcpData) {
   }
 
   if (turn > 0) {
-    process.stderr.write('Warning: agent reached max turns without calling task_complete\n');
+    logger.error('Warning: agent reached max turns without calling task_complete');
   }
 
   return { done: false };

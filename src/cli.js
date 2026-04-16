@@ -162,14 +162,14 @@ program
     const info = await discoverSidecar(ctx);
     if (!info) fatalNoSidecar();
 
-    const mcpData = await initMcpServers();
+    const mcpData = await initMcpServers({ cwd: process.cwd() });
 
     const cleanup = async () => {
       await shutdownMcpServers(mcpData.clients);
     };
 
     try {
-      const result = await runAgent(ctx, intent, modelEnum, mcpData);
+      const result = await runAgent(ctx, intent, modelEnum, mcpData, { cwd: process.cwd() });
       await cleanup();
       process.exit(result.done ? 0 : 1);
     } catch (err) {

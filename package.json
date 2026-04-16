@@ -15,13 +15,22 @@
     "LICENSE"
   ],
   "scripts": {
-    "start": "node src/cli.js"
+    "start": "node src/cli.js",
+    "test": "node --test tests/**/*.test.js"
   },
   "dependencies": {
     "@sanchaymittal/chanakya": "file:../chanakya",
     "commander": "^14.0.0"
   },
-  "keywords": ["antigravity", "ai", "cli", "claude", "gemini", "gpt", "llm"],
+  "keywords": [
+    "antigravity",
+    "ai",
+    "cli",
+    "claude",
+    "gemini",
+    "gpt",
+    "llm"
+  ],
   "license": "MIT",
   "author": "sanchaymittal",
   "repository": {
