@@ -202,7 +202,7 @@ async function callMcpTool(clients, serverName, toolName, args) {
 
 async function shutdownMcpServers(clients) {
   const shutdownPromises = [];
-  for (const [serverName, client] of clients) {
+  for (const [, client] of clients) {
     if (client.isHttp) continue;
     shutdownPromises.push(
       (async () => {

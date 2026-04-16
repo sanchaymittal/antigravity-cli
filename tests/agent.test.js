@@ -33,3 +33,21 @@ test('runAgent uses opts.logger', async () => {
   }
   assert.ok(logged.includes('hello'));
 });
+
+test('runAgent passes opts.cwd to system prompt', async () => {
+  const { runAgent } = require('../src/agent');
+  const raw = require('../src/sidecar/raw');
+  const orig = raw.callRawInference;
+  const captured = [];
+  raw.callRawInference = async (ctx, messages) => {
+    captured.push(messages[0].content);
+    return { content: '', toolCalls: [] };
+  };
+  const logger = { log: () => {}, error: () => {}, write: () => {} };
+  try {
+    await runAgent({}, 'test', 'MODEL', { tools: [], clients: new Map() }, { cwd: '/custom/path', logger });
+  } finally {
+    raw.callRawInference = orig;
+  }
+  assert.ok(captured[0].includes('/custom/path'), 'system prompt must contain custom cwd');
+});
