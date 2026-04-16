@@ -11,13 +11,14 @@ const { runAgent } = require('./agent');
 const { runRepl } = require('./repl');
 const { initMcpServers, shutdownMcpServers } = require('./mcp/client');
 const { snapshotUsage, diffUsage, persistRunUsage, loadHistory } = require('./sidecar/usage');
+const { printError } = require("./ui");
 
 function makeCtx() {
   return { sidecarInfo: null, sidecarInfoTimestamp: 0, SIDECAR_CACHE_TTL: 30000 };
 }
 
 function fatalNoSidecar() {
-  console.error('Error: Antigravity sidecar not found. Make sure Antigravity is running.');
+  printError('Antigravity sidecar not found. Make sure Antigravity is running.');
   console.error('       Set AG_DEBUG=1 for discovery details.');
   process.exit(1);
 }
@@ -80,7 +81,7 @@ program
       const lower = opts.model.toLowerCase();
       const match = Object.keys(MODEL_MAP).find((k) => k.includes(lower) || lower.includes(k));
       if (!match) {
-        console.error(`Unknown model: ${opts.model}`);
+        printError(`Unknown model: ${opts.model}`);
         console.error('Run `ag models` to list available models.');
         process.exit(1);
       }
@@ -91,7 +92,7 @@ program
     const modelEnum = VALUE_TO_MODEL_ENUM[resolved.value];
 
     if (!modelEnum) {
-      console.error(`Unknown model: ${opts.model}`);
+      printError(`Unknown model: ${opts.model}`);
       console.error('Run `ag models` to list available models.');
       process.exit(1);
     }
@@ -99,14 +100,14 @@ program
     // Read from stdin if no message arg provided
     if (!message) {
       if (process.stdin.isTTY) {
-        console.error('Usage: ag chat <message>  or  echo "..." | ag chat');
+        printError('Usage: ag chat <message>  or  echo "..." | ag chat');
         process.exit(1);
       }
       const chunks = [];
       for await (const chunk of process.stdin) chunks.push(chunk);
       message = Buffer.concat(chunks).toString('utf8').trim();
       if (!message) {
-        console.error('No message provided (stdin was empty).');
+        printError('No message provided (stdin was empty).');
         process.exit(1);
       }
     }
@@ -118,7 +119,7 @@ program
     try {
       const result = await callRawInference(ctx, messages, modelEnum, null);
       if (!result || !result.content) {
-        console.error('No response from sidecar.');
+        printError('No response from sidecar.');
         process.exit(1);
       }
       process.stdout.write(result.content);
@@ -127,7 +128,7 @@ program
       if (err.message.includes('not discovered') || err.message.includes('not found') || err.message.includes('No reachable')) {
         fatalNoSidecar();
       }
-      console.error(`Error: ${err.message}`);
+      printError(`Error: ${err.message}`);
       process.exit(1);
     }
   });
@@ -145,7 +146,7 @@ program
       const lower = opts.model.toLowerCase();
       const match = Object.keys(MODEL_MAP).find((k) => k.includes(lower) || lower.includes(k));
       if (!match) {
-        console.error(`Unknown model: ${opts.model}`);
+        printError(`Unknown model: ${opts.model}`);
         console.error('Run `ag models` to list available models.');
         process.exit(1);
       }
@@ -156,7 +157,7 @@ program
     const modelEnum = VALUE_TO_MODEL_ENUM[resolved.value];
 
     if (!modelEnum) {
-      console.error(`Unknown model: ${opts.model}`);
+      printError(`Unknown model: ${opts.model}`);
       console.error('Run `ag models` to list available models.');
       process.exit(1);
     }
@@ -199,7 +200,7 @@ program
       ) {
         fatalNoSidecar();
       }
-      console.error(`Error: ${err.message}`);
+      printError(`Error: ${err.message}`);
       process.exit(1);
     }
   });
@@ -217,7 +218,7 @@ program
       const lower = opts.model.toLowerCase();
       const match = Object.keys(MODEL_MAP).find((k) => k.includes(lower) || lower.includes(k));
       if (!match) {
-        console.error(`Unknown model: ${opts.model}`);
+        printError(`Unknown model: ${opts.model}`);
         console.error('Run `ag models` to list available models.');
         process.exit(1);
       }
@@ -228,7 +229,7 @@ program
     const modelEnum = VALUE_TO_MODEL_ENUM[resolved.value];
 
     if (!modelEnum) {
-      console.error(`Unknown model: ${opts.model}`);
+      printError(`Unknown model: ${opts.model}`);
       console.error('Run `ag models` to list available models.');
       process.exit(1);
     }

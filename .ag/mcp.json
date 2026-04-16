@@ -2,7 +2,7 @@
   "mcpServers": {
     "chanakya": {
       "transport": "http",
-      "url": "http://127.0.0.1:52279/mcp"
+      "url": "http://127.0.0.1:56338/mcp"
     }
   }
 }

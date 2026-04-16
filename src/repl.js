@@ -3,6 +3,7 @@ const readline = require('node:readline');
 const { callRawInference } = require('./sidecar/raw.js');
 const { shutdownMcpServers } = require('./mcp/client.js');
 const { buildAllTools, executeTool } = require('./tools/dispatch.js');
+const { colors, createSpinner, printBanner, printToolCall, printResponse, printError } = require("./ui");
 
 const MAX_TOOL_CALLS_PER_TURN = 15;
 
@@ -20,9 +21,21 @@ async function replTurn(ctx, messages, modelEnum, mcpData, inferFn) {
   const infer = inferFn || ((c, m, e, t) => callRawInference(c, m, e, t));
 
   for (let i = 0; i < MAX_TOOL_CALLS_PER_TURN; i++) {
-    const { content, toolCalls } = await infer(ctx, messages, modelEnum, toolDefs);
+    const spinner = createSpinner("Thinking...");
+    spinner.start();
+    
+    let response;
+    try {
+      response = await infer(ctx, messages, modelEnum, toolDefs);
+      spinner.succeed("");
+    } catch (err) {
+      spinner.fail("Error");
+      throw err;
+    }
 
-    if (content) process.stdout.write(content + '\n');
+    const { content, toolCalls } = response;
+
+    if (content) printResponse(content);
 
     if (!toolCalls || toolCalls.length === 0) {
       messages.push({ role: 'assistant', content: content || '' });
@@ -32,6 +45,7 @@ async function replTurn(ctx, messages, modelEnum, mcpData, inferFn) {
     messages.push({ role: 'assistant', content: content || '', tool_calls: toolCalls });
 
     for (const toolCall of toolCalls) {
+      printToolCall(toolCall.name, toolCall.args_parsed || toolCall.arguments);
       const observation = await executeTool(allTools, mcpData.clients, toolCall);
       if (process.env.AG_DEBUG === '1') {
         process.stderr.write(`[tool:${toolCall.name}] ${observation}\n`);
@@ -40,7 +54,7 @@ async function replTurn(ctx, messages, modelEnum, mcpData, inferFn) {
     }
   }
 
-  process.stderr.write('[ag] max tool calls per turn reached\n');
+  printError('max tool calls per turn reached');
 }
 
 async function runRepl(ctx, modelEnum, mcpData) {
@@ -52,7 +66,10 @@ async function runRepl(ctx, modelEnum, mcpData) {
     terminal: process.stdin.isTTY,
   });
 
-  const prompt = () => process.stdout.write('ag> ');
+  printBanner(modelEnum);
+
+  const promptStr = "\x1b[36m\x1b[1m❯\x1b[0m ";
+  const prompt = () => process.stdout.write(promptStr);
   prompt();
 
   try {
@@ -66,7 +83,7 @@ async function runRepl(ctx, modelEnum, mcpData) {
       try {
         await replTurn(ctx, messages, modelEnum, mcpData);
       } catch (err) {
-        process.stderr.write(`[ag] error: ${err.message}\n`);
+        printError(err.message);
       }
 
       prompt();

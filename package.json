@@ -16,6 +16,7 @@
     "src/model-enum.js",
     "src/models.js",
     "src/repl.js",
+    "src/ui.js",
     "src/utils.js",
     "src/mcp/",
     "src/sidecar/",
@@ -28,7 +29,9 @@
     "test": "node --test tests/**/*.test.js"
   },
   "dependencies": {
-    "commander": "^14.0.0"
+    "commander": "^14.0.0",
+    "chalk": "^4.1.2",
+    "ora": "^5.4.1"
   },
   "keywords": [
     "antigravity",
