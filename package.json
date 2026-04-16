@@ -15,6 +15,7 @@
     "src/images.js",
     "src/model-enum.js",
     "src/models.js",
+    "src/repl.js",
     "src/utils.js",
     "src/mcp/",
     "src/sidecar/",

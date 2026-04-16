@@ -8,6 +8,7 @@ const { MODEL_MAP, DEFAULT_MODEL_KEY, resolveModel } = require('./models');
 const { version } = require('../package.json');
 const { VALUE_TO_MODEL_ENUM } = require('./model-enum');
 const { runAgent } = require('./agent');
+const { runRepl } = require('./repl');
 const { initMcpServers, shutdownMcpServers } = require('./mcp/client');
 const { snapshotUsage, diffUsage, persistRunUsage, loadHistory } = require('./sidecar/usage');
 
@@ -203,6 +204,42 @@ program
     }
   });
 
+// ── ag repl ──────────────────────────────────
+
+program
+  .command('repl')
+  .description('Start interactive agent REPL')
+  .option('-m, --model <model>', 'Model to use', DEFAULT_MODEL_KEY)
+  .action(async (opts) => {
+    const ctx = makeCtx();
+
+    if (!MODEL_MAP[opts.model] && opts.model !== DEFAULT_MODEL_KEY) {
+      const lower = opts.model.toLowerCase();
+      const match = Object.keys(MODEL_MAP).find((k) => k.includes(lower) || lower.includes(k));
+      if (!match) {
+        console.error(`Unknown model: ${opts.model}`);
+        console.error('Run `ag models` to list available models.');
+        process.exit(1);
+      }
+      opts.model = match;
+    }
+
+    const resolved = resolveModel(opts.model);
+    const modelEnum = VALUE_TO_MODEL_ENUM[resolved.value];
+
+    if (!modelEnum) {
+      console.error(`Unknown model: ${opts.model}`);
+      console.error('Run `ag models` to list available models.');
+      process.exit(1);
+    }
+
+    const info = await discoverSidecar(ctx);
+    if (!info) fatalNoSidecar();
+
+    const mcpData = await initMcpServers({ cwd: process.cwd() });
+    await runRepl(ctx, modelEnum, mcpData);
+  });
+
 // ── ag quota ─────────────────────────────────
 
 program
@@ -230,5 +267,18 @@ program
     console.log('------------------------------------------');
     console.log('For quota limits: Antigravity app Settings > Model.');
   });
+
+// No subcommand → enter REPL
+program.action(async () => {
+  const ctx = makeCtx();
+  const info = await discoverSidecar(ctx);
+  if (!info) fatalNoSidecar();
+
+  const resolved = resolveModel(DEFAULT_MODEL_KEY);
+  const modelEnum = VALUE_TO_MODEL_ENUM[resolved.value];
+
+  const mcpData = await initMcpServers({ cwd: process.cwd() });
+  await runRepl(ctx, modelEnum, mcpData);
+});
 
 program.parse();
