@@ -41,7 +41,11 @@ async function runAgent(ctx, intent, modelEnum, mcpData) {
   ];
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
-    const result = await callRawInference(ctx, messages, modelEnum, allToolDefs);
+    const currentToolDefs = turn === 0
+      ? allToolDefs.filter((t) => t.function.name !== 'task_complete')
+      : allToolDefs;
+
+    const result = await callRawInference(ctx, messages, modelEnum, currentToolDefs);
 
     if (result.content) {
       process.stdout.write(result.content);
