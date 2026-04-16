@@ -7,6 +7,7 @@ const TextInput = require('ink-text-input').default;
 const { marked } = require('marked');
 const TerminalRenderer = require('marked-terminal');
 const chalk = require('chalk');
+const path = require('path');
 
 const { shutdownMcpServers } = require("../mcp/client");
 const { MODEL_MAP, resolveModel } = require("../models");
@@ -15,6 +16,22 @@ const { VALUE_TO_MODEL_ENUM } = require("../model-enum");
 marked.setOptions({
   renderer: new TerminalRenderer(),
 });
+
+const BANNER = `
+   ___         __  _                       _ _         
+  / _ \  _ __ / _|(_) __ _ _ __ __ ___   (_) |_ _   _ 
+ / /_\ \| '_ \| |_ | |/ _` | '__/ _` \ \ / / | __| | | |
+/ /_\\ \| | | |  _|| | (_| | | | (_| |\ V /| | |_| |_| |
+\____/\_\_| |_|_|  |_|\__, |_|  \__,_| \_/ |_|\__|\__, |
+                      |___/                       |___/ 
+`;
+
+const TIPS = [
+  "Try asking to 'list files in the current directory'",
+  "You can switch models using /model <name>",
+  "Type /help to see all available commands",
+  "MCP tools are automatically discovered from .ag/mcp.json",
+];
 
 const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTurn }) => {
   const [messages, setMessages] = useState(initialMessages || []);
@@ -83,9 +100,6 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
     setIsThinking(true);
 
     try {
-      // replTurn mutates the messages array, but we want to track state updates
-      // We'll wrap it to capture the updates if possible, or just rely on the fact it mutates
-      // and then set state with a copy.
       await replTurn(ctx, newMessages, modelEnumRef.current, mcpData);
       setMessages([...newMessages]);
     } catch (err) {
@@ -95,54 +109,69 @@ const App = ({ ctx, initialMessages, modelEnum, mcpData, initialModelKey, replTu
     }
   };
 
+  const cwd = path.basename(process.cwd());
+  const mcpCount = mcpData.clients.size;
+
   return (
     <Box flexDirection="column" height="100%">
-      <Box marginBottom={1}>
-        <Text bold>  ag</Text><Text dimColor> — Antigravity CLI</Text>
-      </Box>
       <Box flexDirection="column" flexGrow={1} paddingBottom={1}>
-        {messages.map((msg, i) => (
-          <Box key={i} flexDirection="column" marginBottom={1}>
-            {msg.role === 'user' && (
-              <Box>
-                <Text color="cyan" bold>You: </Text>
-                <Text>{msg.content}</Text>
-              </Box>
-            )}
-            {msg.role === 'assistant' && (
-              <Box flexDirection="column">
-                {msg.content && <Text>{marked(msg.content).trim()}</Text>}
-                {msg.tool_calls && msg.tool_calls.map((tc, j) => (
-                  <Text key={j} color="magenta" dim>
-                    ⚙ {tc.name} {JSON.stringify(tc.args_parsed || tc.arguments)}
-                  </Text>
+        {messages.length === 0 ? (
+          <Box flexDirection="column" alignItems="center" justifyContent="center" marginTop={2}>
+            <Text color="cyan">{BANNER}</Text>
+            <Box marginTop={1} flexDirection="column" alignItems="center">
+              <Text italic dimColor>Welcome to Antigravity CLI</Text>
+              <Box marginTop={1} flexDirection="column">
+                {TIPS.map((tip, i) => (
+                  <Text key={i} dimColor>• {tip}</Text>
                 ))}
               </Box>
-            )}
-            {msg.role === 'tool' && (
-              <Box>
-                <Text color="magenta" dim>⚙ {msg.name} result</Text>
-              </Box>
-            )}
+            </Box>
           </Box>
-        ))}
+        ) : (
+          messages.map((msg, i) => (
+            <Box key={i} flexDirection="column" marginBottom={1}>
+              {msg.role === 'user' && (
+                <Box>
+                  <Text color="cyan" bold>You: </Text>
+                  <Text>{msg.content}</Text>
+                </Box>
+              )}
+              {msg.role === 'assistant' && (
+                <Box flexDirection="column">
+                  {msg.content && <Text>{marked(msg.content).trim()}</Text>}
+                  {msg.tool_calls && msg.tool_calls.map((tc, j) => (
+                    <Text key={j} color="magenta" dim>
+                      ⚙ {tc.name} {JSON.stringify(tc.args_parsed || tc.arguments)}
+                    </Text>
+                  ))}
+                </Box>
+              )}
+              {msg.role === 'tool' && (
+                <Box>
+                  <Text color="magenta" dim>⚙ {msg.name} result</Text>
+                </Box>
+              )}
+            </Box>
+          ))
+        )}
       </Box>
 
-      <Box flexDirection="column">
-        <Box>
+      <Box flexDirection="column" borderStyle="single" borderTop={false} borderLeft={false} borderRight={false} borderBottomColor="gray">
+        <Box paddingX={1}>
           <Box flexGrow={1}>
-            <Text color="gray" dim>{modelKey}</Text>
+            <Text color="gray">{cwd} | {mcpCount} MCPs | {modelKey}</Text>
           </Box>
           {isThinking && (
             <Box>
-              <Text color="gray" dim>thinking...</Text>
+              <Text color="yellow">thinking...</Text>
             </Box>
           )}
         </Box>
-        <Box>
-          <Text color="cyan" bold>❯ </Text>
-          <TextInput value={input} onChange={setInput} onSubmit={handleSubmit} />
-        </Box>
+      </Box>
+
+      <Box paddingX={1} marginTop={1}>
+        <Text color="cyan" bold>❯ </Text>
+        <TextInput value={input} onChange={setInput} onSubmit={handleSubmit} />
       </Box>
     </Box>
   );

@@ -181,7 +181,9 @@ async function initMcpServers(opts = {}) {
         });
       }
     } catch (err) {
-      process.stderr.write(`Warning: MCP server "${serverName}" failed: ${err.message}\n`);
+      if (process.env.AG_DEBUG) {
+        process.stderr.write(`Warning: MCP server "${serverName}" failed: ${err.message}\n`);
+      }
     }
   }
 
