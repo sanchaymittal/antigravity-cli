@@ -1,98 +1,95 @@
-'use strict';
-
+const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
-const readFile = {
-  definition: {
-    type: 'function',
-    function: {
-      name: 'read_file',
-      description: 'Read the contents of a file. Returns file contents as a string.',
-      parameters: {
-        type: 'object',
-        properties: {
-          path: { type: 'string', description: 'Path to the file (relative to CWD or absolute)' },
-        },
-        required: ['path'],
+const builtinTools = {
+  read_file: {
+    name: 'read_file',
+    description: 'Read the contents of a file. Returns file contents as a string.',
+    parameters: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: 'Path to the file (relative to CWD or absolute)'
+        }
       },
+      required: ['path']
     },
-  },
-  execute: async ({ path: filePath }) => {
-    try {
-      const stats = fs.statSync(filePath);
-      if (stats.size > 1024 * 1024) {
-        return 'File too large (>1MB). Use run_bash with head/grep to read portions.';
+    execute: async ({ path: filePath }) => {
+      try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        return content;
+      } catch (error) {
+        return `Error reading file: ${error.message}`;
       }
-      return fs.readFileSync(filePath, 'utf8');
-    } catch (err) {
-      return `Error reading file: ${err.message}`;
     }
   },
-};
 
-const writeFile = {
-  definition: {
-    type: 'function',
-    function: {
-      name: 'write_file',
-      description: 'Write content to a file. Creates parent directories if needed.',
-      parameters: {
-        type: 'object',
-        properties: {
-          path: { type: 'string', description: 'Path to the file' },
-          content: { type: 'string', description: 'Content to write' },
+  write_file: {
+    name: 'write_file',
+    description: 'Write content to a file. Creates parent directories if needed.',
+    parameters: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: 'Path to the file'
         },
-        required: ['path', 'content'],
+        content: {
+          type: 'string',
+          description: 'Content to write'
+        }
       },
+      required: ['path', 'content']
     },
-  },
-  execute: async ({ path: filePath, content }) => {
-    try {
-      fs.mkdirSync(path.dirname(path.resolve(filePath)), { recursive: true });
-      fs.writeFileSync(filePath, content, 'utf8');
-      return 'ok';
-    } catch (err) {
-      return `Error writing file: ${err.message}`;
+    execute: async ({ path: filePath, content }) => {
+      try {
+        const dir = path.dirname(filePath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        fs.writeFileSync(filePath, content, 'utf8');
+        return `File written to ${filePath}`;
+      } catch (error) {
+        return `Error writing file: ${error.message}`;
+      }
     }
   },
-};
 
-const runBash = {
-  definition: {
-    type: 'function',
-    function: {
-      name: 'run_bash',
-      description: 'Run a shell command. Returns stdout, stderr, and exit_code as JSON.',
-      parameters: {
-        type: 'object',
-        properties: {
-          command: { type: 'string', description: 'Shell command to run' },
-          timeout_ms: {
-            type: 'number',
-            description: 'Timeout in ms. Default 120000 (2min). Max 600000 (10min).',
-          },
+  run_bash: {
+    name: 'run_bash',
+    description: 'Run a shell command. Returns stdout, stderr, and exit_code as JSON.',
+    parameters: {
+      type: 'object',
+      properties: {
+        command: {
+          type: 'string',
+          description: 'Shell command to run'
         },
-        required: ['command'],
+        timeout_ms: {
+          type: 'number',
+          description: 'Timeout in milliseconds',
+          minimum: 1,
+          maximum: 600000
+        }
       },
+      required: ['command']
     },
-  },
-  execute: async ({ command, timeout_ms }) => {
-    try {
-      const timeout = Math.min(timeout_ms ?? 120000, 600000);
-      const stdout = execSync(command, { encoding: 'utf8', timeout, shell: true });
-      return JSON.stringify({ stdout, stderr: '', exit_code: 0 });
-    } catch (err) {
-      return JSON.stringify({
-        stdout: err.stdout || '',
-        stderr: err.stderr || err.message,
-        exit_code: err.status || 1,
+    execute: async ({ command, timeout_ms }) => {
+      const t = Number(timeout_ms);
+      const timeout = Number.isFinite(t) && t > 0 ? Math.min(t, 600000) : 120000;
+      return new Promise((resolve) => {
+        exec(command, { timeout }, (error, stdout, stderr) => {
+          resolve({
+            stdout,
+            stderr,
+            exit_code: error ? error.code : 0
+          });
+        });
       });
     }
-  },
+  }
 };
 
-const BUILTIN_TOOLS = [readFile, writeFile, runBash];
-
-module.exports = { BUILTIN_TOOLS };
+module.exports = builtinTools;
