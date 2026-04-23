@@ -2,7 +2,7 @@
 
 const _raw = require('./sidecar/raw');
 const { buildAllTools, executeTool } = require('./tools/dispatch.js');
-const { createSpinner, printToolCall, printError, printSuccess } = require("./ui");
+const { createSpinner, formatToolCall } = require("./ui");
 
 const MAX_TURNS = 50;
 
@@ -16,10 +16,11 @@ function makeSystemPrompt(cwd) {
 }
 
 async function runAgent(ctx, intent, modelEnum, mcpData, opts = {}) {
+  // stderr — chanakya parses stdout for structured events
   const logger = opts.logger ?? {
-    log: (...a) => console.log(...a),
+    log: (...a) => console.error(...a),
     error: (...a) => console.error(...a),
-    write: (s) => process.stdout.write(s),
+    write: (s) => process.stderr.write(s),
   };
   const cwd = opts.cwd ?? process.cwd();
 
@@ -77,7 +78,7 @@ async function runAgent(ctx, intent, modelEnum, mcpData, opts = {}) {
       if (typeof args === "string") {
         try { parsedArgs = JSON.parse(args); } catch { parsedArgs = null; }
       }
-      printToolCall(name, parsedArgs);
+      logger.error(formatToolCall(name, parsedArgs));
       spinner.start();
       spinner.text = "Running...";
 

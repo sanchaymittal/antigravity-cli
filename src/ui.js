@@ -25,7 +25,7 @@ function printBanner(model) {
   console.log();
 }
 
-function printToolCall(name, args) {
+function formatToolCall(name, args) {
   let parsed = args;
   if (typeof args === "string") {
     try { parsed = JSON.parse(args); } catch { parsed = null; }
@@ -35,7 +35,11 @@ function printToolCall(name, args) {
     const first = Object.values(parsed)[0];
     return first ? colors.dim(" " + String(first).replace(/\n/g, " ").slice(0, 60)) : "";
   })();
-  console.log(colors.tool("  ⚙ " + name) + preview);
+  return colors.tool("  ⚙ " + name) + preview;
+}
+
+function printToolCall(name, args) {
+  console.log(formatToolCall(name, args));
 }
 
 function printResponse(text) {
@@ -53,4 +57,4 @@ function printSuccess(msg) {
   console.log(colors.success("  ✔ " + msg));
 }
 
-module.exports = { colors, createSpinner, printBanner, printToolCall, printResponse, printError, printSuccess };
+module.exports = { colors, createSpinner, printBanner, formatToolCall, printToolCall, printResponse, printError, printSuccess };
