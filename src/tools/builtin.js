@@ -72,6 +72,8 @@ const runBash = {
           timeout_ms: {
             type: 'number',
             description: 'Timeout in ms. Default 120000 (2min). Max 600000 (10min).',
+            minimum: 1,
+            maximum: 600000,
           },
         },
         required: ['command'],
@@ -80,7 +82,8 @@ const runBash = {
   },
   execute: async ({ command, timeout_ms }) => {
     try {
-      const timeout = Math.min(timeout_ms ?? 120000, 600000);
+      const t = Number(timeout_ms);
+      const timeout = Number.isFinite(t) && t > 0 ? Math.min(t, 600000) : 120000;
       const stdout = execSync(command, { encoding: 'utf8', timeout, shell: true });
       return JSON.stringify({ stdout, stderr: '', exit_code: 0 });
     } catch (err) {
