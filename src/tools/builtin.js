@@ -69,14 +69,19 @@ const runBash = {
         type: 'object',
         properties: {
           command: { type: 'string', description: 'Shell command to run' },
+          timeout_ms: {
+            type: 'number',
+            description: 'Timeout in ms. Default 120000 (2min). Max 600000 (10min).',
+          },
         },
         required: ['command'],
       },
     },
   },
-  execute: async ({ command }) => {
+  execute: async ({ command, timeout_ms }) => {
     try {
-      const stdout = execSync(command, { encoding: 'utf8', timeout: 120000, shell: true });
+      const timeout = Math.min(timeout_ms ?? 120000, 600000);
+      const stdout = execSync(command, { encoding: 'utf8', timeout, shell: true });
       return JSON.stringify({ stdout, stderr: '', exit_code: 0 });
     } catch (err) {
       return JSON.stringify({
